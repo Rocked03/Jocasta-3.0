@@ -183,12 +183,12 @@ class ComicsCog(commands.Cog, name = "Comics"):
         await self.bot.wait_until_ready()
         channel = self.bot.get_channel(id=534457946046988288)
         while not self.bot.is_closed():
-            now = datetime.datetime.utcnow()
+            now = discord.utils.utcnow()
             today = now.date()
             tmp1 = datetime.datetime.combine(today, datetime.time(0)) + datetime.timedelta(1 - today.weekday())
             result = tmp1 + datetime.timedelta(7) if tmp1 < now else tmp1
-            sleepsecs = (result - datetime.datetime.utcnow()).total_seconds()
-            print(f"Weekly Release list auto-command set to run in {result - datetime.datetime.utcnow()}")
+            sleepsecs = (result - discord.utils.utcnow()).total_seconds()
+            print(f"Weekly Release list auto-command set to run in {result - discord.utils.utcnow()}")
             await asyncio.sleep(sleepsecs)
 
             try:
