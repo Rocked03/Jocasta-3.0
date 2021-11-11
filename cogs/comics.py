@@ -163,7 +163,7 @@ class ComicsCog(commands.Cog, name = "Comics"):
 
         emptyembed = discord.Embed(colour = self.bot.colours.comicreleases)
         emptyembed.set_author(name=f"Full Release List - {date}")
-        emptyembed.set_thumbnail(url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/MarvelLogo.svg/1200px-MarvelLogo.svg.png')
+        emptyembed.set_thumbnail(url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Marvel_Logo.svg/1280px-Marvel_Logo.svg.png')
 
         cembeds = [emptyembed]
 
