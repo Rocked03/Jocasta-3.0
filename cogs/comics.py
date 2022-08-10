@@ -7,7 +7,7 @@ from marvel.marvel import Marvel # pip install -U git+https://github.com/Rocked0
 
 
 class ComicsCog(commands.Cog, name = "Comics"):
-    """General commands"""
+    """Comic commands"""
 
     def __init__(self, bot):
         self.bot = bot
