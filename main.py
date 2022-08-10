@@ -32,7 +32,7 @@ bot.recentcog = None
 async def on_connect():
 	print('Loaded Discord')
 	activity = discord.Game(name="Starting up...")
-	await bot.change_presence(status=discord.Status.idle, activity=activity)
+	# await bot.change_presence(status=discord.Status.idle, activity=activity)
 
 @bot.event
 async def on_ready():
