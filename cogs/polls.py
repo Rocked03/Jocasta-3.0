@@ -1,25 +1,43 @@
 import asyncio, asyncpg, datetime, discord, enum, random
 from discord.ext import commands
-from discord import app_commands
-from discord.app_commands import Choice
+from discord import *
+from discord.app_commands import *
 from funcs.buttonpaginator import *
 
 '''
 x Create polls
 x Delete polls
-- View polls
+x View polls
+x Search polls
 - Edit polls
-- Schedule polls
+x Schedule polls
 - Start polls
 
 x SQL DB
 x Slashies
 - Schedule timer
 
+- Vote on poll
+  - update message function
+  - update votes values in SQL function
 - Add reaction adds to thread
+
+
+- add description to poll qs
+- add server to poll qs
+- tags stored in SQL
+- poll info per server
+  - server id
+  - manager role
+  - tags
+  - external command channel access
+  - colour
+- Search polls only by server
+- Search all polls
+- Server/channel/message IDs for crossposts
 '''
 
-# id (int), num (int), time (datetime), message_id (int), question (str), thread_question (str), choices (str[]), tag (str), votes (int[]), image (str), duration (datetime), published (bool)
+# id (int), num (int), time (datetime), message_id (int), question (str), thread_question (str), choices (str[]), tag (str), votes (int[]), image (str), published (bool), duration (datetime)
 
 
 class PollsCog(commands.Cog, name = "Polls"):
