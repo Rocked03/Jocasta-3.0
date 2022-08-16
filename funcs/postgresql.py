@@ -36,7 +36,6 @@ class PostgreSQLCog(commands.Cog, name = "PostgreSQL"):
 			pass
 
 		p = await self.bot.db.fetch("SELECT * FROM polls WHERE $1 ~! ANY(choices)", "no")
-		print(p)
 
 
 async def setup(bot):
