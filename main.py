@@ -28,6 +28,8 @@ bot = Jocasta(command_prefix=get_pre, description=description, intents=intents)
 
 bot.recentcog = None
 
+bot.tasks = {}
+
 @bot.event
 async def on_connect():
 	print('Loaded Discord')

@@ -13,8 +13,11 @@ class PostgreSQLCog(commands.Cog, name = "PostgreSQL"):
 		self.credentials = {"user": "jocasta", "password": "Obsidian", "database": "jocasta", "host": "188.166.191.180"}
 		self.bot.loop.create_task(self.loadPostgreSQL())
 
+		self.bot.postgresql_loaded = False
+
 	async def loadPostgreSQL(self):
 		self.bot.db = await asyncpg.create_pool(**self.credentials)
+		self.bot.postgresql_loaded = True
 
 		try:
 			await self.bot.db.execute("""
@@ -35,7 +38,6 @@ class PostgreSQLCog(commands.Cog, name = "PostgreSQL"):
 		except asyncpg.exceptions.DuplicateFunctionError:
 			pass
 
-		p = await self.bot.db.fetch("SELECT * FROM polls WHERE $1 ~! ANY(choices)", "no")
 
 
 async def setup(bot):
