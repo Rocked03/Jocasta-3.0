@@ -22,8 +22,7 @@ class Jocasta(commands.Bot):
 intents = discord.Intents.all()
 
 description = "Jocasta 3.0"
-BOT_PREFIX = "=="
-get_pre = lambda bot, message: "=="
+get_pre = lambda bot, message: BOT_PREFIX
 bot = Jocasta(command_prefix=get_pre, description=description, intents=intents)
 
 bot.recentcog = None

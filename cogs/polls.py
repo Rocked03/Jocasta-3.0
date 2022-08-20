@@ -25,7 +25,7 @@ x Force sync update
 x Vote on poll
   x update message function
   x update votes values in SQL function
-- Add reaction adds to thread
+x Add reaction adds to thread
 
 x add description to poll qs
 x add server to poll qs
@@ -51,6 +51,7 @@ x question values
 
 - show user history
   - show unvoted polls
+
 - tags
   - create
   - edit
@@ -63,17 +64,17 @@ x end message repeat
 - update message gets in queue so doesn't hit ratelimits so quickly
 x recover buttons on start
 
-- info embed when voting
-- better more informative info embed
+x info embed when voting
+x better more informative info embed
 - ditto for schedule embed
 - format duration in info embed
-- new embed for pretty
+x new embed for pretty
 
 - fix search with better regex or smth
 
 - timestamp creator command
 
-- set up better config
+x set up better config
 
 
 - make a poll object
@@ -90,6 +91,7 @@ x schedule on schedule command
 x schedule on start command
 x schedule on end command
 x questions with same time diff tags processed separately
+- editing embed with hiding things
 
 '''
 
@@ -110,9 +112,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 			"starts": {},
 			"ends": {},
 		}
-
-		self.bot.loop.create_task(self.on_startup_scheduler())
-		self.bot.loop.create_task(self.on_startup_buttons())
 
 		self.sort = {
 			self.Sort.poll_id: "Poll ID",
@@ -145,8 +144,19 @@ class PollsCog(commands.Cog, name = "Polls"):
 	# Sun, Mar 6, 2022 ~ 3:30 PM UTC
 	s = lambda self, x: "" if x == 1 else "s"
 
-	choiceformats = ['🇦', '🇧', '🇨', '🇩', '🇪', '🇫', '🇬', '🇭']
+
+
+	choiceformats = ['<:A_poll:1010385130851926046>', '<:B_p:1010385134412898345>', '<:C_p:1010385137596383242>', '<:D_p:1010385139899056208>', '<:E_p:1010385142340132917>', '<:F_p:1010385145754292224>', '<:G_p:1010385149176840302>', '<:H_p:1010385151890575471>']
 	choiceformat = lambda self, x: self.choiceformats[x]
+	
+	lineformats = ['<:lf:1010385160363057221>', '<:le:1010385155019505826>', '<:lfc:1010385164095979560>', '<:lec:1010385157032783933>', '<:ld:1010391538934759426>']
+	def lineformat(self, x):
+		if not x: return self.lineformats[3]
+
+		txt = [0] * (x - 1) + [1]
+		txt[0] = txt[0] + 2
+
+		return ''.join([self.lineformats[i] for i in txt])
 
 
 
@@ -179,7 +189,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		return await self.bot.db.fetch("SELECT * FROM pollstags WHERE guild_id = $1", guildid)
 
 	async def fetchalltags(self):
-		return await self.bot.db.fetchrow("SELECT * FROM pollstags")
+		return await self.bot.db.fetch("SELECT * FROM pollstags")
 
 	async def tagname(self, tagid: int):
 		return (await self.fetchtag(tagid))['name']
@@ -234,7 +244,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 	async def canview(self, poll, guild_id):
 		tag = await self.fetchtag(poll['tag'])
 		return guild_id == poll['guild_id'] or guild_id in tag['crosspost_servers']
-
 
 	@staticmethod
 	def poll_manager_only():
@@ -302,15 +311,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	async def pollinfoembed(self, poll, *, guild = None, tag = None):
+		if not guild: guild = await self.fetchguildinfo(poll['guild_id'])
+		if not tag: tag = await self.fetchtag(poll['tag'])
+
 		if not poll['num']:
 			embed = discord.Embed(title = poll['question'])
 		else:
 			embed = discord.Embed(title = f"#{poll['num']}: {poll['question']}")
 
 		embed.description = poll['description']
-
-		if not guild: guild = await self.fetchguildinfo(poll['guild_id'])
-		if not tag: tag = await self.fetchtag(poll['tag'])
 
 		embed.colour = self.fetchcolour(guild, tag)
 
@@ -347,6 +356,131 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		return embed
 
+	async def pollquestionembed(self, poll, *, guild = None, tag = None, interaction = None, showextra = False):
+		if not guild: guild = await self.fetchguildinfo(poll['guild_id'])
+		if not tag: tag = await self.fetchtag(poll['tag'])
+
+		if showextra and interaction is None:
+			showextra = False
+
+		embed = discord.Embed()
+
+		if poll['show_question']:
+			if not poll['num']:
+				embed.title = poll['question']
+			else:
+				embed.title = f"#{poll['num']}: {poll['question']}"
+
+			embed.description = poll['description']
+
+		embed.colour = self.fetchcolour(guild, tag)
+
+		txt = []
+		if poll['published']:
+			max_length = 10
+			max_vote = max(poll['votes'])
+			for c, v, n in zip(poll['choices'], poll['votes'], range(len(poll['choices']))):
+				if poll['show_voting']:
+					if max_vote: x = (v * max_length) // max_vote
+					else: x = 0
+					if poll['show_options']:
+						embed.add_field(name = f"{self.lineformats[4]} {c}", value = f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)}", inline = False)
+					else:
+						txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)}")
+				elif poll['show_options']:
+					txt.append(f"{self.choiceformat(n)} {poll['choices'][n]}")
+		else:
+			for c, n in zip(poll['choices'], range(len(poll['choices']))):
+				if poll['show_options']:
+					txt.append(f"{self.choiceformat(n)} {poll['choices'][n]}")
+		if txt:
+			if not poll['show_voting']:
+				embed.add_field(name = "Choices", value = '\n'.join(txt), inline = False)
+			else:
+				embed.add_field(name = "Choices", value = '\n'.join(txt[:4]), inline = False)
+				if txt[4:]:
+					embed.add_field(name ="--", value = '\n'.join(txt[4:]), inline = False)
+
+
+		if showextra:
+			name = ""
+			value = ""
+			if poll['duration'] and poll['published']:
+				end_time = poll['time'] + poll['duration']
+				if poll['active']: name = "Poll ends at"
+				else: name = "Poll finished at"
+				value = "<t:{0}:F> - <t:{0}:R>\n\n".format(int(end_time.timestamp()))
+			elif poll['active']:
+				name = "The poll is currently open for voting!"
+
+			if interaction.guild_id == poll['guild_id']:
+				msg = await interaction.guild.get_channel(guild['default_channel_id']).fetch_message(poll['message_id'])
+			elif tag and interaction.guild_id in tag['crosspost_servers']:
+				found = False
+				for cid in tag['crosspost_channels']:
+					channel = interaction.guild.get_channel(cid)
+					if channel:
+						for mid in poll['crosspost_message_ids']:
+							try:
+								msg = await channel.fetch_message(mid)
+							except NotFound:
+								continue
+							else:
+								found = True
+								break
+					if found: break
+
+			if msg:
+				value += f"Vote [here](<{msg.jump_url}>)!"
+
+			embed.add_field(name = name, value = value)
+
+
+		if poll['thread_question'] and (not showextra or poll['active']): embed.add_field(name = "Discuss in the thread:", value = poll['thread_question'])
+
+		if poll['image']: embed.set_image(url = poll['image'])
+
+		embed.set_footer(text = f"ID: {poll['id']}")
+
+		return embed
+
+	async def pollfooterembed(self, poll, user, *, guild = None, tag = None):
+		if not guild: guild = await self.fetchguildinfo(poll['guild_id'])
+		if not tag: tag = await self.fetchtag(poll['tag'])
+
+		embed = discord.Embed()
+
+		if poll['show_question']:
+			if not poll['num']:
+				embed.title = poll['question']
+			else:
+				embed.title = f"#{poll['num']}: {poll['question']}"
+
+		embed.colour = self.fetchcolour(guild, tag)
+
+		txt = []
+		max_length = 10
+		max_vote = max(poll['votes'])
+		for c, v, n in zip(poll['choices'], poll['votes'], range(len(poll['choices']))):
+			if poll['show_voting']:
+				x = (v * max_length) // max_vote
+				txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)}")
+
+		if not poll['show_voting']:
+			txt.append("Votes are hidden!")
+
+		vote = await self.vote(poll, user)
+		if vote is not None:
+			txt.append(f"You've voted: {self.choiceformat(vote)}")
+			if poll['show_options']: txt[-1] += f" *{poll['choices'][vote]}*"
+		else:
+			txt.append(f"You haven't voted yet!")
+
+		embed.add_field(name = "Voting", value = '\n'.join(txt))
+
+		return embed
+
+
 	def sortpolls(self, polls: list, sort: Sort = Sort.poll_id):
 		# poll id, newest, oldest, most votes, least votes
 		polls.sort(key = lambda x: x['id']) # default poll id order
@@ -362,8 +496,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 		return polls
 
 
-	pollsgroup = app_commands.Group(name="polls", description="Poll commands", guild_ids=[288896937074360321])
-	pollsadmingroup = app_commands.Group(name="pollsadmin", description="Poll administrative commands", guild_ids=[288896937074360321])
+	pollsgroup = app_commands.Group(name="polls", description="Poll commands", guild_ids=[288896937074360321, 1010550869391065169])
+	pollsadmingroup = app_commands.Group(name="pollsadmin", description="Poll administrative commands", guild_ids=[288896937074360321, 1010550869391065169])
 
 
 
@@ -403,7 +537,20 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 			guilds = await self.hasmanagerperms(interaction)
 			if interaction.guild_id not in guilds: guilds.append(interaction.guild_id)
-			results = [i for i in results if i['guild_id'] in guilds or (any(g in findtag(i)['crosspost_servers'] for g in guilds) and crosspost)]
+			newresults = []
+			for i in results:
+				if i['guild_id'] in guilds:
+					newresults.append(i)
+				elif crosspost:
+					try:
+						crosspostmatch = [g in findtag(i)['crosspost_servers'] for g in guilds]
+						if any(crosspostmatch):
+							newresults.append(i)
+					except StopIteration:
+						continue
+			results = newresults
+			# results = [i for i in results if i['guild_id'] in guilds or (any(g in findtag(i)['crosspost_servers'] for g in guilds) and crosspost)]
+
 
 		if returnresults: return results
 
@@ -702,13 +849,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 			await asyncio.sleep(0.1)
 		self.bot.loop.create_task(self.schedule_starts())
 		self.bot.loop.create_task(self.schedule_ends())
+		self.bot.loop.create_task(self.on_startup_scheduler())
+		self.bot.loop.create_task(self.on_startup_buttons())
 
 
 
 
 	async def formatpollmessage(self, poll):
-		content = poll['question']
-		embed = await self.pollinfoembed(poll)
+		content = None
+		embed = await self.pollquestionembed(poll)
 		view = await self.pollbuttons(poll['id'], active = poll['active'])
 
 		return {
@@ -797,11 +946,18 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 			if poll['active']:
 				await client.vote(poll, interaction.user, value)
+				qid = f"*{poll['question']}* ({poll['id']})" if poll['show_question'] else f"`{poll['id']}`"
 
 				if value != -1:
-					await interaction.followup.send(f"On the poll *\"{poll['question']}\"* ({poll['id']}), you voted:\n{client.choiceformat(value)}: {poll['choices'][value]}", ephemeral = True)
+					if poll['show_options']:
+						await interaction.followup.send(f"On the poll {qid}, you voted:\n{client.choiceformat(value)}: {poll['choices'][value]}", ephemeral = True)
+					else:
+						await interaction.followup.send(f"On the poll {qid}, you voted:\n{client.choiceformat(value)}", ephemeral = True)
 				else:
-					await interaction.followup.send(f"**Cleared** your vote on the poll *\"{poll['question']}\"* ({poll['id']})", ephemeral = True)
+					await interaction.followup.send(f"**Cleared** your vote on the poll {qid}", ephemeral = True)
+
+				await client.add_to_thread(interaction, poll, value)
+
 			else:
 				await interaction.followup.send(f"This poll has ended!", ephemeral = True)
 
@@ -826,14 +982,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 				options = []
 
 				for c, n in zip(poll['choices'], range(len(poll['choices']))):
+					label = c if poll['show_options'] else "Vote!"
 					options.append(discord.SelectOption(
 						emoji = client.choiceformat(n),
 						value = str(n),
-						label = c
+						label = label
 						))
 
 				super().__init__(
-					placeholder = placeholder, 
+					placeholder = placeholder,
 					min_values = 1, max_values = 1,
 					options = options,
 					**kwargs
@@ -862,7 +1019,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			async def callback(self, interaction: discord.Interaction):
 				await interaction.response.defer()
 
-				await interaction.followup.send(embed = await self.client.pollinfoembed(self.poll), ephemeral = True)
+				await interaction.followup.send(embed = await self.client.pollfooterembed(self.poll, interaction.user), ephemeral = True)
 
 	async def pollbuttons(self, poll_id, **kwargs):
 		poll = await self.fetchpoll(poll_id)
@@ -877,15 +1034,37 @@ class PollsCog(commands.Cog, name = "Polls"):
 			# self.add_view(view)
 
 
-	async def vote(self, poll, user, choice):
-		if not await self.bot.db.fetch("SELECT * FROM pollsvotes WHERE user_id = $1", user.id):
+	async def vote(self, poll, user, choice = None):
+		vote = await self.bot.db.fetchrow("SELECT * FROM pollsvotes WHERE user_id = $1", user.id)
+		if not vote:
 			await self.bot.db.execute("INSERT INTO pollsvotes (user_id) VALUES ($1)", user.id)
+			vote = await self.bot.db.fetch("SELECT * FROM pollsvotes WHERE user_id = $1", user.id)
 
-		if poll['active']:
+		if poll['active'] and choice is not None:
 			if choice == -1: choice = None
 			await self.bot.db.execute("UPDATE pollsvotes SET \"{}\" = $2 WHERE user_id = $1".format(str(poll['id'])), user.id, choice)
 
-		await self.updatepollmessage(poll)
+			await self.updatepollmessage(poll)
+
+			return choice
+		else:
+			return vote[str(poll['id'])]
+
+	async def add_to_thread(self, interaction, poll = None, choice = None):
+		thread = interaction.message.guild.get_channel_or_thread(interaction.message.id)
+		if thread and poll['thread_question']:
+			try:
+				try:
+					await thread.fetch_member(interaction.user.id)
+				except NotFound:
+					await thread.add_user(interaction.user)
+			except Forbidden:
+				pass
+			finally:
+				if poll and choice is not None:
+					embed = discord.Embed()
+					embed.description = f"{interaction.user.mention} voted for {self.choiceformat(choice)} *{poll['choices'][choice]}*\nIn this thread, discuss: {poll['thread_question']}"
+					await thread.send(embed=embed)
 
 
 
@@ -991,6 +1170,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 		elif view.value:
 			await self.bot.db.execute("DELETE FROM polls WHERE id = $1", poll_id)
 
+			findtag = lambda x: next(i for i in tags if i['id'] == x['tag'])
+
 			recreate = ["/polls create", f"question: {poll['question']}"]
 			recreate += [f"opt_{i}: c" for c, i in zip(poll['choices'], range(1, len(poll['choices']) + 1))]
 			if poll['thread_question']: recreate.append(f"thread_question: {poll['thread_question']}")
@@ -1071,12 +1252,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if poll['published'] and tag:
 			return await interaction.followup.send("You can't edit tags once the poll's been published!")
 
-		if tag and tag != clearvalue and tag.isdigit():
-			tagobj = await self.fetchtag(int(tag))
-			if tagobj and tagobj['guild_id'] == poll['guild_id']:
-				tag = int(tag)
-		else:
-			return await interaction.followup.send("Please select an available tag.")
+		if tag:
+			if tag.isdigit():
+				tagobj = await self.fetchtag(int(tag))
+				if tagobj and tagobj['guild_id'] == await self.fetchguildid(interaction):
+					tag = int(tag)
+				else:
+					return await interaction.followup.send("Please select an available tag.")
+			else:
+				return await interaction.followup.send("Please select an available tag.")
 
 
 
@@ -1099,23 +1283,23 @@ class PollsCog(commands.Cog, name = "Polls"):
 			names.append(name)
 			values.append(value)
 
-		if question:
+		if question is not None:
 			append("question", question)
-		if choices:
+		if choices is not None:
 			append("choices", choices)
-		if description:
+		if description is not None:
 			append("description", clear(description))
-		if thread_question:
+		if thread_question is not None:
 			append("thread_question", clear(thread_question))
-		if image:
+		if image is not None:
 			append("image", clear(image))
-		if tag:
+		if tag is not None:
 			append("tag", clear(tag))
-		if show_question:
+		if show_question is not None:
 			append("show_question", show_question)
-		if show_options:
+		if show_options is not None:
 			append("show_options", show_options)
-		if show_voting:
+		if show_voting is not None:
 			append("show_voting", show_voting)
 
 		await update(names, *values)
@@ -1133,15 +1317,23 @@ class PollsCog(commands.Cog, name = "Polls"):
 		oldembed.title = f"[OLD] {oldembed.title}"
 		newembed.title = f"[NEW] {newembed.title}"
 
-
+		await self.updatepollmessage(newpoll)
 
 		await interaction.followup.send(f"Edited poll `{poll_id}`", embeds = [oldembed, newembed])
 
 
 
+
+
 	@polledit.autocomplete("poll_id")
 	async def polledit_autocomplete_poll_id(self, interaction: discord.Interaction, current: int):
-		return await self.autocomplete_searchbypollid(interaction, current)
+		results = await self.autocomplete_searchbypollid(interaction, current, returnresults = True)
+		results = [i for i in results if not i['published'] or (i['published'] and i['active'])]
+
+		results.sort(key = lambda x: x['published'])
+
+		choices = [app_commands.Choice(name = f"[{i['id']}] {i['question']} {'{published}' if i['published'] else ''}", value = i['id']) for i in results[:25]]
+		return choices
 
 	@polledit.autocomplete("tag")
 	async def polledit_autocomplete_tag(self, interaction: discord.Interaction, current: str):
@@ -1375,8 +1567,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 		keyword = "Keyword to search for. Searches the question and thread question. Case-insensitive.",
 		sort = "Order to list results.",
 		tag = "Tag to filter results by.",
+		active = "List active or inactive questions only.",
 		published = "List published or unpublished questions only. Unpublished polls are only visible to Poll Managers.",
-		active = "List active or inactive questions only."
+		showextrainfo = "Shows all settings for the poll. Only useable by Poll Managers."
 		)
 	@app_commands.choices(sort=choices['sort'])
 	async def pollsearch(self, interaction: discord.Interaction,
@@ -1386,6 +1579,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			tag: str = None,
 			active: bool = None,
 			published: bool = None,
+			showextrainfo: bool = False,
 		):
 		"""Searches poll questions. Search by poll ID, or by keyword, and filter by tag."""
 
@@ -1399,14 +1593,21 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 			if not poll: poll = await self.bot.db.fetchrow("SELECT * FROM polls WHERE num = $1", poll_id)
 
-			if not poll or (not poll['published'] and not await self.hasmanagerperms(interaction) and await self.canview(poll, interaction.guild_id)):
+			managerperms = await self.hasmanagerperms(interaction)
+
+			if not poll or (not poll['published'] and not managerperms and await self.canview(poll, interaction.guild_id)):
 				return await interaction.followup.send(f"Couldn't find a poll with the ID `{poll_id}`.")
 
-			embed = await self.pollinfoembed(poll)
+			if showextrainfo:
+				if not managerperms:
+					showextrainfo = False
+
+			if not showextrainfo:
+				embed = await self.pollquestionembed(poll, interaction = interaction, showextra = True)
+			else:
+				embed = await self.pollinfoembed(poll)
 
 			await interaction.followup.send(embed=embed)
-			# add shortcut buttons to delete (and edit maybe?)
-
 			return
 
 		else:

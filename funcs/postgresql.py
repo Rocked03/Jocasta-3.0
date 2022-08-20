@@ -3,6 +3,8 @@ from discord.ext import commands
 import asyncio
 import asyncpg
 
+from config import *
+
 
 class PostgreSQLCog(commands.Cog, name = "PostgreSQL"):
 	"""Loads PostgreSQL"""
@@ -10,7 +12,7 @@ class PostgreSQLCog(commands.Cog, name = "PostgreSQL"):
 	def __init__(self, bot):
 		self.bot = bot
 
-		self.credentials = {"user": "jocasta", "password": "Obsidian", "database": "jocasta", "host": "188.166.191.180"}
+		self.credentials = postgres_credentials
 		self.bot.loop.create_task(self.loadPostgreSQL())
 
 		self.bot.postgresql_loaded = False

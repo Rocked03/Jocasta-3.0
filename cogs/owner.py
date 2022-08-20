@@ -126,14 +126,17 @@ class OwnerCog(commands.Cog, name = "Owner"):
 
 	async def canceltasks(self, name):
 		async def canceller(self, x):
-			try: await self.bot.tasks[x].cancel()
+			try: self.bot.tasks[x].cancel()
 			except Exception: pass
 
 		if name == 'cogs.comics':
 			await canceller(self, 'releases')
 
 		if name == 'cogs.polls':
-			pass
+			for x in ['starts', 'ends']:
+				for k, v in self.bot.tasks['poll_schedules'][x].items():
+					try: v.cancel()
+					except Exception: pass
 
 		if name == 'funcs.postgresql':
 			try: await self.bot.db.close()
