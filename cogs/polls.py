@@ -97,13 +97,11 @@ x questions with same time diff tags processed separately
 
 # id (int), num (int), time (datetime), message_id (int), question (str), thread_question (str), choices (str[]), votes (int[]), image (str), published (bool), duration (datetime), guildid (int), description (str), tag (int), show_question (bool), show_options (bool), show_voting (bool), active (bool), crosspost_message_ids (int[])
 
-@staticmethod
 def poll_manager_only():
 	async def actual_check(interaction: Interaction):
 		return await interaction.client.hasmanagerperms(interaction)
 	return app_commands.check(actual_check)
 
-@staticmethod
 def owner_only():
 	async def actual_check(interaction: Interaction):
 		return await interaction.client.is_owner(interaction.user)
