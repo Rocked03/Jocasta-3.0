@@ -97,6 +97,18 @@ x questions with same time diff tags processed separately
 
 # id (int), num (int), time (datetime), message_id (int), question (str), thread_question (str), choices (str[]), votes (int[]), image (str), published (bool), duration (datetime), guildid (int), description (str), tag (int), show_question (bool), show_options (bool), show_voting (bool), active (bool), crosspost_message_ids (int[])
 
+@staticmethod
+def poll_manager_only():
+	async def actual_check(interaction: Interaction):
+		return await interaction.client.hasmanagerperms(interaction)
+	return app_commands.check(actual_check)
+
+@staticmethod
+def owner_only():
+	async def actual_check(interaction: Interaction):
+		return await interaction.client.is_owner(interaction.user)
+	return app_commands.check(actual_check)
+
 
 class PollsCog(commands.Cog, name = "Polls"):
 	"""Polls commands"""
@@ -143,6 +155,20 @@ class PollsCog(commands.Cog, name = "Polls"):
 	strf = lambda self, x: x.strftime('%a, %b %d, %Y ~ %I:%M:%S %p %Z').replace(" 0", " ")
 	# Sun, Mar 6, 2022 ~ 3:30 PM UTC
 	s = lambda self, x: "" if x == 1 else "s"
+
+	def strfdelta(self, tdelta):
+		d = {}
+		d["week"], d["day"] = divmod(tdelta.days, 7)
+		d["hour"], rem = divmod(tdelta.seconds, 3600)
+		d["minute"], d["second"] = divmod(rem, 60)
+		return d
+	def strfduration(self, tdt):
+		txt = []
+		for k, v in self.strfdelta(tdt).items():
+			if v:
+				txt.append(f"{v} {k}{self.s(v)}")
+		return ', '.join(txt)
+
 
 
 
@@ -245,17 +271,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 		tag = await self.fetchtag(poll['tag'])
 		return guild_id == poll['guild_id'] or guild_id in tag['crosspost_servers']
 
-	@staticmethod
-	def poll_manager_only():
-		async def actual_check(interaction: Interaction):
-			return await interaction.client.hasmanagerperms(interaction)
-		return app_commands.check(actual_check)
-
-	@staticmethod
-	def owner_only():
-		async def actual_check(interaction: Interaction):
-			return await interaction.client.is_owner(interaction.user)
-		return app_commands.check(actual_check)
 
 
 	class Confirm(discord.ui.View):
@@ -336,7 +351,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if poll['tag']: embed.add_field(name = "Tag", value = f"`{tag['name']}`")
 
 		if poll['time']: embed.add_field(name = "Publish Date", value = f"<t:{int(poll['time'].timestamp())}:F>")
-		if poll['duration']: embed.add_field(name = "Duration", value = poll['duration'])
+		if poll['duration']: embed.add_field(name = "Duration", value = self.strfduration(poll['duration']))
 
 		if poll['message_id']:
 			message = await self.bot.get_channel(self.fetchchannelid(guild, tag)).fetch_message(poll['message_id'])
@@ -1434,7 +1449,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		embed = discord.Embed(title = "Scheduled Poll", description = f"{poll['question']}", colour = await self.fetchcolourbyid(poll['guild_id'], poll['tag']), timestamp = discord.utils.utcnow())
 		embed.set_footer(text = f"ID: {poll['id']}" + f'''{f" (#{poll['num']})" if poll['num'] else ""}''')
 		embed.add_field(name = "Start time", value = f"<t:{int(poll['time'].timestamp())}:F>\n`{int(poll['time'].timestamp())}`" if poll['time'] else "No time scheduled.")
-		embed.add_field(name = "End time", value = f"<t:{int((poll['time']+poll['duration']).timestamp())}:F> - lasts {poll['duration']}\n`{int(poll['duration'].total_seconds())}`" if poll['time'] and poll['duration'] else f"Lasts {poll['duration']}\n`{int(poll['duration'].total_seconds())}`" if poll['duration'] else "No end time scheduled.")
+		embed.add_field(name = "End time", value = f"<t:{int((poll['time']+poll['duration']).timestamp())}:F> - lasts {self.strfduration(poll['duration'])}\n`{int(poll['duration'].total_seconds())}`" if poll['time'] and poll['duration'] else f"Lasts {poll['duration']}\n`{int(poll['duration'].total_seconds())}`" if poll['duration'] else "No end time scheduled.")
 
 		return await interaction.followup.send(embed=embed)
 
