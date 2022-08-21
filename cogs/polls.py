@@ -64,9 +64,11 @@ x end message repeat
 - update message gets in queue so doesn't hit ratelimits so quickly
 x recover buttons on start
 
+x TOTAL VOTES
+
 x info embed when voting
 x better more informative info embed
-- ditto for schedule embed
+x ditto for schedule embed
 - format duration in info embed
 x new embed for pretty
 
@@ -117,7 +119,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		self.bot.tree.on_error = self.on_app_command_error
 
-
 		self.bot.tasks['poll_schedules'] = {
 			"starts": {},
 			"ends": {},
@@ -132,6 +133,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 		}
 
 		self.bot.hasmanagerperms = self.hasmanagerperms
+
+		self.bot.loop.create_task(self.on_startup_scheduler())
+
 
 
 
@@ -340,7 +344,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if not poll['votes']:
 			embed.add_field(name = "Choices", value = "\n".join([f'- {c}' for c in poll['choices']]), inline = False)
 		else:
-			embed.add_field(name = "Choices", value = "\n".join([f'- ({v}) {c}' for v, c in zip(poll['votes'], poll['choices'])]), inline = False)
+			embed.add_field(name = "Choices", value = "\n".join([f'- ({v}) {c}' for v, c in zip(poll['votes'], poll['choices'])] + f"Total votes: **{sum(poll['votes'])}**"), inline = False)
 
 		embed.add_field(name = "Published?", value = poll['published'])
 		embed.add_field(name = "Active?", value = poll['active'])
@@ -402,6 +406,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 						txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)}")
 				elif poll['show_options']:
 					txt.append(f"{self.choiceformat(n)} {poll['choices'][n]}")
+			txt.append(f"Total votes: **{sum(poll['votes'])}**")
 		else:
 			for c, n in zip(poll['choices'], range(len(poll['choices']))):
 				if poll['show_options']:
@@ -410,9 +415,12 @@ class PollsCog(commands.Cog, name = "Polls"):
 			if not poll['show_voting']:
 				embed.add_field(name = "Choices", value = '\n'.join(txt), inline = False)
 			else:
-				embed.add_field(name = "Choices", value = '\n'.join(txt[:4]), inline = False)
-				if txt[4:]:
-					embed.add_field(name ="--", value = '\n'.join(txt[4:]), inline = False)
+				if not poll['show_options']:
+					embed.add_field(name = "Choices", value = '\n'.join(txt[:4]), inline = False)
+					if txt[4:]:
+						embed.add_field(name ="--", value = '\n'.join(txt[4:]), inline = False)
+				else:
+					embed.add_field(name = "Voting", value = '\n'.join(txt), inline = False)
 
 
 		if showextra:
@@ -862,7 +870,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 			await asyncio.sleep(0.1)
 		self.bot.loop.create_task(self.schedule_starts())
 		self.bot.loop.create_task(self.schedule_ends())
-		self.bot.loop.create_task(self.on_startup_scheduler())
 		self.bot.loop.create_task(self.on_startup_buttons())
 
 
@@ -930,6 +937,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			else:
 				self.add_item(self.ChoiceOptions(
 					client, poll, self.vote,
+					custom_id = "0",
 					row = 0,
 					disabled = not active,
 					))
@@ -1044,7 +1052,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		for poll in polls:
 			view = await self.pollbuttons(poll['id'], active = poll['active'])
-			# self.add_view(view)
+			self.bot.add_view(view)
 
 
 	async def vote(self, poll, user, choice = None):
@@ -1186,13 +1194,17 @@ class PollsCog(commands.Cog, name = "Polls"):
 			findtag = lambda x: next(i for i in tags if i['id'] == x['tag'])
 
 			recreate = ["/polls create", f"question: {poll['question']}"]
-			recreate += [f"opt_{i}: c" for c, i in zip(poll['choices'], range(1, len(poll['choices']) + 1))]
+			recreate += [f"opt_{i}: {c}" for c, i in zip(poll['choices'], range(1, len(poll['choices']) + 1))]
+			if poll['description']: recreate.append(f"question: {poll['description']}")
 			if poll['thread_question']: recreate.append(f"thread_question: {poll['thread_question']}")
 			if poll['image']: recreate.append(f"image: {poll['image']}")
 			if poll['tag']: recreate.append(f"tag: {self.findtag(poll['tag']).name}")
+			if poll['show_question'] is not None: recreate.append(f"show_question: {poll['show_question']}")
+			if poll['show_options'] is not None: recreate.append(f"show_options: {poll['show_options']}")
+			if poll['show_voting'] is not None: recreate.append(f"show_voting: {poll['show_voting']}")
 			recreatemsg = ' '.join(recreate)
 
-			await msg.edit(content = f"Deleted the poll question.\n\nTo recreate this poll, type:\n`{recreatemsg}`\n\n`WIP`", view = view)
+			await msg.edit(content = f"Deleted the poll question.\n\nTo recreate this poll, type:\n`{recreatemsg}", view = view)
 		else:
 			await msg.edit(content = "Cancelled.", view = view)
 
@@ -1330,7 +1342,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 		oldembed.title = f"[OLD] {oldembed.title}"
 		newembed.title = f"[NEW] {newembed.title}"
 
-		await self.updatepollmessage(newpoll)
+		if poll['published']:
+			await self.updatepollmessage(newpoll)
 
 		await interaction.followup.send(f"Edited poll `{poll_id}`", embeds = [oldembed, newembed])
 
