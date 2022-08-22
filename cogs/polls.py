@@ -200,7 +200,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if showunpublished:
 			return await self.bot.db.fetch("SELECT * FROM polls WHERE CAST(id AS TEXT) LIKE $1", f"{poll_id}%")
 		else:
-			return await self.bot.db.fetch("SELECT * WHERE CAST(id AS TEXT) LIKE $1 AND published = true", f"{poll_id}%")
+			return await self.bot.db.fetch("SELECT * FROM polls WHERE CAST(id AS TEXT) LIKE $1 AND published = true", f"{poll_id}%")
 
 	async def searchpollsbykeyword(self, keyword, showunpublished = False):
 		if showunpublished:
