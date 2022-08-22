@@ -49,8 +49,8 @@ x question values
   x show options
   x show votes
 
-- show user history
-  - show unvoted polls
+x show user history
+  x show unvoted polls
 
 - tags
   - create
@@ -1002,7 +1002,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				client, poll,
 				label = "📊",
 				style = discord.ButtonStyle.green,
-				custom_id = "i",
+				custom_id = str(poll['id']),
 				row = 2,
 				))
 
