@@ -61,8 +61,13 @@ x end message repeat
 - end message ping
 - end message gives role
 
-- update message gets in queue so doesn't hit ratelimits so quickly
+x update message gets in queue
+  x if flag doesn't exist, trigger function that sets flag to false, updates message, and waits x secs
+  x if flag already exists, set to true (if not already)
+  x function loops ONLY IF flag is true
 x recover buttons on start
+
+- make fetching crossposts more efficient by indexing
 
 x TOTAL VOTES
 
@@ -123,6 +128,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 			"starts": {},
 			"ends": {},
 		}
+
+		self.bot.updatemsg_lock = asyncio.Lock()
+		self.bot.updatemsg_flags = {}
 
 		self.sort = {
 			self.Sort.poll_id: "Poll ID",
@@ -254,9 +262,11 @@ class PollsCog(commands.Cog, name = "Polls"):
 	async def hasmanagerperms(self, interaction: discord.Interaction):
 		return await self.hasmanagerpermsbyuserandids(interaction.user, interaction.guild_id, interaction.channel_id)
 
-	async def hasmanagerpermsbyuserandids(self, user, guild_id, channel_id):
+	async def hasmanagerpermsbyuserandids(self, user, guild_id, channel_id = None):
 		guild = await self.bot.db.fetchrow("SELECT * FROM pollsinfo WHERE guild_id = $1", guild_id)
-		manage_channels = await self.bot.db.fetch("SELECT * FROM pollsinfo WHERE manage_channel_id && $1", [channel_id])
+		if channel_id:
+			manage_channels = await self.bot.db.fetch("SELECT * FROM pollsinfo WHERE manage_channel_id && $1", [channel_id])
+		else: manage_channels = []
 
 		guilds = []
 
@@ -344,7 +354,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if not poll['votes']:
 			embed.add_field(name = "Choices", value = "\n".join([f'- {c}' for c in poll['choices']]), inline = False)
 		else:
-			embed.add_field(name = "Choices", value = "\n".join([f'- ({v}) {c}' for v, c in zip(poll['votes'], poll['choices'])] + f"Total votes: **{sum(poll['votes'])}**"), inline = False)
+			embed.add_field(name = "Choices", value = "\n".join([f'- ({v}) {c}' for v, c in zip(poll['votes'], poll['choices'])]) + f"\nTotal votes: **{sum(poll['votes'])}**", inline = False)
 
 		embed.add_field(name = "Published?", value = poll['published'])
 		embed.add_field(name = "Active?", value = poll['active'])
@@ -479,17 +489,26 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		embed.colour = self.fetchcolour(guild, tag)
 
-		txt = []
-		max_length = 10
-		max_vote = max(poll['votes'])
-		for c, v, n in zip(poll['choices'], poll['votes'], range(len(poll['choices']))):
-			if poll['show_voting']:
+
+		if poll['show_voting'] or await self.hasmanagerpermsbyuserandids(user, guild['guild_id']):
+			txt = []
+			max_length = 10
+			max_vote = max(poll['votes'])
+			for c, v, n in zip(poll['choices'], poll['votes'], range(len(poll['choices']))):
 				x = (v * max_length) // max_vote
 				txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)}")
 
-		if not poll['show_voting']:
-			txt.append("Votes are hidden!")
+			ishidden = not poll['show_voting']
 
+			embed.add_field(name = f"Votes {'(not revealed publicly, keep it a secret!)' if ishidden else ''}", value = '\n'.join(txt[:4]), inline = False)
+			if txt[4:]:
+				embed.add_field(name ="--", value = '\n'.join(txt[4:]), inline = False)
+
+		else:
+			embed.add_field(name = "Votes", value = "Votes are hidden!")
+
+
+		txt = []
 		vote = await self.vote(poll, user)
 		if vote is not None:
 			txt.append(f"You've voted: {self.choiceformat(vote)}")
@@ -497,7 +516,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		else:
 			txt.append(f"You haven't voted yet!")
 
-		embed.add_field(name = "Voting", value = '\n'.join(txt))
+		embed.add_field(name = "Your vote", value = '\n'.join(txt))
 
 		return embed
 
@@ -887,6 +906,25 @@ class PollsCog(commands.Cog, name = "Polls"):
 		}
 
 	async def updatepollmessage(self, poll):
+		async with self.bot.updatemsg_lock:
+			if poll['id'] not in self.bot.updatemsg_flags.keys():
+				self.bot.updatemsg_flags[poll['id']] = True
+				self.bot.loop.create_task(self.loop_updatepollmessage(poll))
+			else:
+				self.bot.updatemsg_flags[poll['id']] = True
+
+	async def loop_updatepollmessage(self, poll):
+		while self.bot.updatemsg_flags[poll['id']] == True:
+			self.bot.updatemsg_flags[poll['id']] = False
+
+			await self.do_updatepollmessage(poll)
+
+			wait = 2
+			await asyncio.sleep(wait)
+		self.bot.updatemsg_flags.pop(poll['id'])
+
+
+	async def do_updatepollmessage(self, poll):
 		tag = await self.fetchtag(poll['tag'])
 		guild = await self.fetchguildinfo(poll['guild_id'])
 		channel_id = self.fetchchannelid(guild, tag)
