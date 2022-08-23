@@ -83,6 +83,13 @@ x new embed for pretty
 
 x set up better config
 
+- me command single polls
+- delete message doesn't break bot
+- move database to testing
+- check perms for commands
+
+
+
 
 - make a poll object
 
@@ -648,6 +655,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if isinstance(error, app_commands.errors.CheckFailure):
 			if await self.validguild(interaction):
 				return await interaction.response.send_message(f"You need to be a <@&{(await self.fetchguildinfo(interaction.guild_id))['manager_role_id'][0]}> to do that!", ephemeral = True)
+			else:
+				return await interaction.response.send_message(f"This command is not available here!", ephemeral = True)
 
 		await interaction.followup.send("Something broke!")
 		_log.error('Ignoring exception in command %r', interaction.command.name, exc_info=error)
@@ -754,10 +763,37 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 		if tag and tag['end_message']:
-			embed = discord.Embed(description = tag['end_message'], colour = await self.fetchcolourbyid(guild['guild_id'], tag['id']))
-			endmsgs = [await channel.send(embed = embed)]
+			txt = {
+				"content": None,
+				"embed": None,
+				"view": None
+				}
+
+			view = None
+			if tag['end_message_role_ids'] and tag['end_message_self_assign']:
+				view = self.SelfAssignRoleView(tag['end_message_role_ids'])
+
+
+			txt['embed'] = discord.Embed(description = tag['end_message'], colour = await self.fetchcolourbyid(guild['guild_id'], tag['id']))
+
+			def getroles(channel):
+				roles = []
+				for r in tag['end_message_role_ids']:
+					role = channel.guild.get_role(r)
+					if role: roles.append(role)
+				return roles
+
+			roles = getroles(channel)
+			txt['content'] = " ".join([r.mention for r in roles])
+			txt['view'] = view if roles else None
+			endmsgs = [await channel.send(**txt)]
+
 			for ch in crossposts:
-				endmsgs.append(await ch.send(embed = embed))
+				roles = getroles(ch)
+				txt['content'] = " ".join([r.mention for r in roles])
+				txt['view'] = view if roles else None
+				endmsgs.append(await ch.send(**txt))
+
 
 			if tag['end_message_replace']:
 				if tag['end_message_latest_ids']:
@@ -899,6 +935,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		self.bot.loop.create_task(self.schedule_starts())
 		self.bot.loop.create_task(self.schedule_ends())
 		self.bot.loop.create_task(self.on_startup_buttons())
+		self.bot.loop.create_task(self.on_startup_selfassign())
 
 
 
@@ -1133,6 +1170,49 @@ class PollsCog(commands.Cog, name = "Polls"):
 					embed = discord.Embed()
 					embed.description = f"{interaction.user.mention} voted for {self.choiceformat(choice)} *{poll['choices'][choice]}*\nIn this thread, discuss: {poll['thread_question']}"
 					await thread.send(embed=embed)
+
+
+
+	class SelfAssignRoleView(discord.ui.View):
+		def __init__(self, role_ids):
+			super().__init__(timeout=None)
+			role_ids.sort()
+
+			self.add_item(self.SelfAssignButton(
+				role_ids,
+				label = "Get role!",
+				custom_id = ",".join(str(i) for i in role_ids)
+				))
+
+		class SelfAssignButton(discord.ui.Button):
+			def __init__(self, role_ids, **kwargs):
+				super().__init__(**kwargs)
+				self.role_ids = role_ids
+
+			async def callback(self, interaction: discord.Interaction):
+				user = interaction.user
+
+				roles = []
+				for r in self.role_ids:
+					role = interaction.guild.get_role(r)
+					if role: roles.append(role)
+
+				rolepings = " ".join(r.mention for r in roles)
+
+				if any(i not in user.roles for i in roles):
+					await user.add_roles(*roles)
+					return await interaction.response.send_message(f"Successfully assigned: {rolepings}", ephemeral = True)
+				else:
+					await user.remove_roles(*roles)
+					return await interaction.response.send_message(f"Successfully unassigned: {rolepings}", ephemeral = True)
+
+	async def on_startup_selfassign(self):
+		tags = await self.bot.db.fetch("SELECT * FROM pollstags WHERE end_message_self_assign = $1 and cardinality(end_message_role_ids) <> 0", True)
+
+		for t in tags:
+			view = self.SelfAssignRoleView(t['end_message_role_ids'])
+			self.bot.add_view(view)
+
 
 
 
@@ -1770,9 +1850,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 	@pollsgroup.command(name="me")
 	@app_commands.describe(
 		show_unvoted = "Shows all the polls you haven't voted on yet!",
-		user = "Views history of a specified user."
+		user = "Views history of a specified user.",
+		poll_id = "Shows your vote on a specific poll."
 		)
-	async def pollsme(self, interaction: discord.Interaction, show_unvoted: bool = False, user: str = None):
+	async def pollsme(self, interaction: discord.Interaction, show_unvoted: bool = False, user: int = None, poll_id: int = None):
 		"""Shows your poll voting history"""
 
 		await interaction.response.defer()
@@ -1796,92 +1877,145 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		votes = {int(k): v for k, v in votes.items() if k != 'user_id'}
 
-		voted = {'voted': [], 'unvoted': []}
-		for k, v in votes.items():
-			if v is not None:
-				voted['voted'].append(k)
+		if poll_id is None:
+			voted = {'voted': [], 'unvoted': []}
+			for k, v in votes.items():
+				if v is not None:
+					voted['voted'].append(k)
+				else:
+					voted['unvoted'].append(k)
+
+			if not show_unvoted:
+				poll_ids = voted['voted']
+
+				polls = await self.bot.db.fetch("SELECT * FROM polls WHERE id = ANY($1::integer[])", poll_ids)
+				polls = [i for i in polls if await self.canview(i, interaction.guild_id)]
+				polls = self.sortpolls(polls, self.Sort.newest)
+
+				entries = [[i, votes[i['id']]] for i in polls]
+
+				if not entries:
+					embed = discord.Embed(title = f"{user.name}'s Polls", colour = await self.fetchcolourbyid(await self.fetchguildid(interaction), None), timestamp = discord.utils.utcnow())
+					embed.add_field(name = "No votes", value = f"{'''You haven't''' if op else f'''{user.name} hasn't'''} voted for anything yet!" + (f"Use `/pollsme show_unvoted: true` to see all the polls you're able to vote on!'" if op else ''))
+					embed.set_footer(text = f"Page 0/0 (0 results) | {user.id}")
+					return await msg.edit(embed=embed)
+
+				class PollsMePaginator(BaseButtonPaginator):
+					async def format_page(self, entries):
+						embed = discord.Embed(title = f"{self.user.name}'s Polls", colour = self.colour, timestamp = discord.utils.utcnow())
+						for p, v in entries:
+							embed.add_field(
+								name = f"{p['id']}{(' (#' + str(p['num']) + ')') if p['num'] else ''}: {p['question']}",
+								value = f"{'You' if self.op else self.user.name} voted: {self.client.choiceformat(v)} " + (f"*{p['choices'][v]}*" if p['show_options'] else ''),
+								inline = False
+								)
+						embed.set_footer(text = f"Page {self.current_page}/{self.total_pages} ({len(self.entries)} results) | {self.user.id}")
+						return embed
+
+
 			else:
-				voted['unvoted'].append(k)
+				poll_ids = voted['unvoted']
 
-		if not show_unvoted:
-			poll_ids = voted['voted']
+				polls = await self.bot.db.fetch("SELECT * FROM polls WHERE id = ANY($1::integer[])", poll_ids)
+				polls = [i for i in polls if i['active'] and await self.canview(i, interaction.guild_id)]
+				polls = self.sortpolls(polls, self.Sort.oldest)
 
-			polls = await self.bot.db.fetch("SELECT * FROM polls WHERE id = ANY($1::integer[])", poll_ids)
-			polls = [i for i in polls if await self.canview(i, interaction.guild_id)]
-			polls = self.sortpolls(polls, self.Sort.newest)
+				entries = polls
 
-			entries = [[i, votes[i['id']]] for i in polls]
+				if not entries:
+					embed = discord.Embed(title = f"{user.name}'s Polls", colour = await self.fetchcolourbyid(await self.fetchguildid(interaction), None), timestamp = discord.utils.utcnow())
+					embed.add_field(name = "All voted for!", value = f"{'''You've''' if op else f'''{user.name}'s'''} voted on all active polls!")
+					embed.set_footer(text = f"Page 0/0 (0 results) | {user.id}")
+					return await msg.edit(embed=embed)
 
-			if not entries:
-				embed = discord.Embed(title = f"{user.name}'s Polls", colour = await self.fetchcolourbyid(await self.fetchguildid(interaction), None), timestamp = discord.utils.utcnow())
-				embed.add_field(name = "No votes", value = f"{'''You haven't''' if op else f'''{user.name} hasn't'''} voted for anything yet!" + (f"Use `/pollsme show_unvoted: true` to see all the polls you're able to vote on!'" if op else ''))
-				embed.set_footer(text = f"Page 0/0 (0 results) | {user.id}")
-				return await msg.edit(embed=embed)
+				class PollsMePaginator(BaseButtonPaginator):
+					async def format_page(self, entries):
+						embed = discord.Embed(title = f"{self.user.name}'s Polls", colour = self.colour, timestamp = discord.utils.utcnow())
+						for p in entries:
+							guild = await self.client.fetchguildinfo(p['guild_id'])
+							tag = await self.client.fetchtag(p['tag'])
+							if interaction.guild_id == p['guild_id']:
+								message = await self.client.bot.get_channel(self.client.fetchchannelid(guild, tag)).fetch_message(p['message_id'])
+							else:
+								i = tag['crosspost_servers'].index(interaction.guild_id)
+								message = await self.client.bot.get_channel(tag['crosspost_channels'][i]).fetch_message(p['crosspost_message_ids'][i])
+							embed.add_field(
+								name = f"{p['id']}{(' (#' + str(p['num']) + ')') if p['num'] else ''}: {p['question']}",
+								value = f"Vote [here](<{message.jump_url}>)!",
+								inline = False
+								)
+						embed.set_footer(text = f"Page {self.current_page}/{self.total_pages} ({len(self.entries)} results) | {self.user.id}")
+						return embed
 
-			class PollsMePaginator(BaseButtonPaginator):
-				async def format_page(self, entries):
-					embed = discord.Embed(title = f"{self.user.name}'s Polls", colour = self.colour, timestamp = discord.utils.utcnow())
-					for p, v in entries:
-						embed.add_field(
-							name = f"{p['id']}{(' (#' + str(p['num']) + ')') if p['num'] else ''}: {p['question']}",
-							value = f"{'You' if self.op else self.name} voted: {self.client.choiceformat(v)} " + (f"*{p['choices'][v]}*" if p['show_options'] else ''),
-							inline = False
-							)
-					embed.set_footer(text = f"Page {self.current_page}/{self.total_pages} ({len(self.entries)} results) | {self.user.id}")
-					return embed
 
+
+			PollsMePaginator.user = user
+			PollsMePaginator.colour = await self.fetchcolourbyid(await self.fetchguildid(interaction), None)
+			PollsMePaginator.op = op
+			PollsMePaginator.interaction = interaction
+			PollsMePaginator.client = self
+
+			paginator = await PollsMePaginator.start(msg, entries=entries, per_page=15)
+
+			await paginator.wait()
+
+			for child in paginator.children:
+				child.disabled = True
+			paginator.stop()
+
+			return await paginator.msg.edit(content="Timed out.", view=paginator)
 
 		else:
-			poll_ids = voted['unvoted']
-
-			polls = await self.bot.db.fetch("SELECT * FROM polls WHERE id = ANY($1::integer[])", poll_ids)
-			polls = [i for i in polls if i['active'] and await self.canview(i, interaction.guild_id)]
-			polls = self.sortpolls(polls, self.Sort.oldest)
-
-			entries = polls
-
-			if not entries:
-				embed = discord.Embed(title = f"{user.name}'s Polls", colour = await self.fetchcolourbyid(await self.fetchguildid(interaction), None), timestamp = discord.utils.utcnow())
-				embed.add_field(name = "All voted for!", value = f"{'''You've''' if op else f'''{user.name}'s'''} voted on all active polls!")
-				embed.set_footer(text = f"Page 0/0 (0 results) | {user.id}")
-				return await msg.edit(embed=embed)
-
-			class PollsMePaginator(BaseButtonPaginator):
-				async def format_page(self, entries):
-					embed = discord.Embed(title = f"{self.user.name}'s Polls", colour = self.colour, timestamp = discord.utils.utcnow())
-					for p in entries:
-						guild = await self.client.fetchguildinfo(p['guild_id'])
-						tag = await self.client.fetchtag(p['tag'])
-						if interaction.guild_id == p['guild_id']:
-							message = await self.client.bot.get_channel(self.client.fetchchannelid(guild, tag)).fetch_message(p['message_id'])
-						else:
-							i = tag['crosspost_servers'].index(interaction.guild_id)
-							message = await self.client.bot.get_channel(tag['crosspost_channels'][i]).fetch_message(p['crosspost_message_ids'][i])
-						embed.add_field(
-							name = f"{p['id']}{(' (#' + str(p['num']) + ')') if p['num'] else ''}: {p['question']}",
-							value = f"Vote [here](<{message.jump_url}>)!",
-							inline = False
-							)
-					embed.set_footer(text = f"Page {self.current_page}/{self.total_pages} ({len(self.entries)} results) | {self.user.id}")
-					return embed
+			poll = await self.fetchpoll(poll_id)
+			if not poll:
+				return await interaction.followup.send(f"Couldn't find a poll with the ID `{poll_id}`.")
 
 
+			embed = discord.Embed(title = f"{user.name}'s Polls", colour = await self.fetchcolourbyid(await self.fetchguildid(interaction), None), timestamp = discord.utils.utcnow())
 
-		PollsMePaginator.user = user
-		PollsMePaginator.colour = await self.fetchcolourbyid(await self.fetchguildid(interaction), None)
-		PollsMePaginator.op = op
-		PollsMePaginator.interaction = interaction
-		PollsMePaginator.client = self
+			choice = votes[int(poll_id)]
+			if choice is not None:
+				value = f"{'You' if op else user.name} voted: {self.choiceformat(choice)} " + (f"*{poll['choices'][choice]}*" if poll['show_options'] else '')
+			else:
+				value = f"{'''You haven't''' if op else f'''{user.name} hasn't'''} voted on this poll yet!"
 
-		paginator = await PollsMePaginator.start(msg, entries=entries, per_page=15)
+			embed.add_field(
+				name = f"{poll['id']}{(' (#' + str(poll['num']) + ')') if poll['num'] else ''}: {poll['question']}",
+				value = value,
+				inline = False
+				)
 
-		await paginator.wait()
+			embed.set_footer(text = str(user.id))
 
-		for child in paginator.children:
-			child.disabled = True
-		paginator.stop()
+			await msg.edit(content = '', embed=embed)
 
-		return await paginator.msg.edit(content="Timed out.", view=paginator)
+	@pollsme.autocomplete("poll_id")
+	async def pollsme_autocomplete_poll_id(self, interaction: discord.Interaction, current: int):
+		return await self.autocomplete_searchbypollid(interaction, current, published = True, crosspost = True)
+
+	@pollsme.autocomplete("user")
+	async def pollsme_autocomplete_user(self, interaction: discord.Interaction, current: int):
+		if current is None:
+			return []
+
+		if current.isdigit():
+			member = interaction.guild.get_member(int(current))
+			if member is not None:
+				return [app_commands.Choice(name = str(member) + (f" ({member.nick})" if member.nick else ""), value = member.id)]
+
+		mems = interaction.guild.members
+
+		lowered = str(current)
+		mems = [i for i in mems if lowered in i.name.lower() or (lowered in i.nick.lower() if i.nick else False)]
+
+		regex = [f"^\b{lowered}\b", f"\b{lowered}\b", f"^{lowered}", lowered]
+		mems.sort(key = lambda x: x.name)
+		mems.sort(key = lambda x: [bool(re.search(i, j)) for i in regex for j in [x.name.lower()] + ([x.nick.lower()] if x.nick else [])].index(True))
+
+		return [app_commands.Choice(name = str(member) + (f" ({member.nick})" if member.nick else ""), value = member.id) for member in mems[:25]]
+
+
+
 
 
 	@pollsadmingroup.command(name="sync")
