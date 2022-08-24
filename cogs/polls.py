@@ -58,8 +58,8 @@ x show user history
   - delete
 
 x end message repeat
-- end message ping
-- end message gives role
+x end message ping
+x end message gives role
 
 x update message gets in queue
   x if flag doesn't exist, trigger function that sets flag to false, updates message, and waits x secs
@@ -83,11 +83,13 @@ x new embed for pretty
 
 x set up better config
 
-- me command single polls
+x me command single polls
 - delete message doesn't break bot
 - move database to testing
 - check perms for commands
 
+x on-startup views check for archived polls
+- countdown command
 
 
 
@@ -507,7 +509,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			max_length = 10
 			max_vote = max(poll['votes'])
 			for c, v, n in zip(poll['choices'], poll['votes'], range(len(poll['choices']))):
-				x = (v * max_length) // max_vote
+				x = (v * max_length) // max_vote if max_vote else 0
 				txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)}")
 
 			ishidden = not poll['show_voting']
@@ -526,7 +528,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 			txt.append(f"You've voted: {self.choiceformat(vote)}")
 			if poll['show_options']: txt[-1] += f" *{poll['choices'][vote]}*"
 		else:
-			txt.append(f"You haven't voted yet!")
+			if poll['active']:
+				txt.append(f"You haven't voted yet!")
+			else:
+				txt.append(f"You didn't vote!")
 
 		embed.add_field(name = "Your vote", value = '\n'.join(txt))
 
@@ -1009,31 +1014,32 @@ class PollsCog(commands.Cog, name = "Polls"):
 		def __init__(self, client, poll, *, active = True):
 			super().__init__(timeout=None)
 
-			if len(poll['choices']) <= 4:
-				for c, n in zip(poll['choices'], range(len(poll['choices']))):
-					self.add_item(self.ChoiceButton(
+			if active:
+				if len(poll['choices']) <= 4:
+					for c, n in zip(poll['choices'], range(len(poll['choices']))):
+						self.add_item(self.ChoiceButton(
+							client, poll, self.vote,
+							emoji = client.choiceformat(n),
+							custom_id = f"{poll['id']}{n}",
+							row = (n) // 4,
+							disabled = not active
+							))
+				else:
+					self.add_item(self.ChoiceOptions(
 						client, poll, self.vote,
-						emoji = client.choiceformat(n),
-						custom_id = str(n),
-						row = (n) // 4,
-						disabled = not active
+						custom_id = f"{poll['id']}^",
+						row = 0,
+						disabled = not active,
 						))
-			else:
-				self.add_item(self.ChoiceOptions(
-					client, poll, self.vote,
-					custom_id = "0",
-					row = 0,
-					disabled = not active,
-					))
 
-			self.add_item(self.ClearVoteButton(
-				client, poll, self.vote,
-				label = "Clear Vote",
-				style = discord.ButtonStyle.red,
-				custom_id = "-1",
-				row = 2,
-				disabled = not active
-				))
+				self.add_item(self.ClearVoteButton(
+					client, poll, self.vote,
+					label = "Clear Vote",
+					style = discord.ButtonStyle.red,
+					custom_id = "-1",
+					row = 2,
+					disabled = not active
+					))
 
 			self.add_item(self.InfoButton(
 				client, poll,
@@ -1073,9 +1079,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 				self.client = client
 				self.poll = poll
 				self.vote = vote
+				self.value = int(self.custom_id) % 10
 
 			async def callback(self, interaction: discord.Interaction):
-				await self.vote(self.client, self.poll, interaction, int(self.custom_id))
+				await self.vote(self.client, self.poll, interaction, self.value)
 
 
 		class ChoiceOptions(discord.ui.Select):
@@ -1132,7 +1139,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 		return self.PollView(self, poll, **kwargs)
 		
 	async def on_startup_buttons(self):
-		polls = await self.bot.db.fetch("SELECT * FROM polls WHERE active = $1", True)
+		polls = await self.bot.db.fetch("SELECT * FROM polls WHERE published = $1", True)
+		polls.sort(key = lambda x: discord.utils.utcnow() - x['time'])
+		polls.sort(key = lambda x: not x['active'])
 
 		for poll in polls:
 			view = await self.pollbuttons(poll['id'], active = poll['active'])
@@ -1226,7 +1235,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		thread_question = "Question to ask in the accompanying Thread.",
 		image = "Image to accompany Poll Question.",
 		tag = "Tag categorising this Poll Question.",
-		show_question = "Show question in poll message.", show_options = "Show options in poll message.", show_voting = "Show the current state of votes in poll message."
+		show_question = "Show question in poll message. Defaults to true.", show_options = "Show options in poll message. Defaults to true.", show_voting = "Show the current state of votes in poll message. Defaults to true."
 		)
 	async def pollcreate(self, interaction: discord.Interaction, 
 			question: str, 
