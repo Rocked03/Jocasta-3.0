@@ -554,7 +554,11 @@ class PollsCog(commands.Cog, name = "Polls"):
 		return polls
 
 
-	pollsgroup = app_commands.Group(name="polls", description="Poll commands", guild_ids=[288896937074360321, 1010550869391065169])
+	if global_slashies:
+		pollsgroup = app_commands.Group(name="polls", description="Poll commands")
+	else:
+		pollsgroup = app_commands.Group(name="polls", description="Poll commands", guild_ids=[288896937074360321, 1010550869391065169])
+
 	pollsadmingroup = app_commands.Group(name="pollsadmin", description="Poll administrative commands", guild_ids=[288896937074360321, 1010550869391065169])
 
 
