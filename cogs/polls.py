@@ -996,14 +996,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		await (await channel.fetch_message(poll['message_id'])).edit(**txt)
 
-		for mid in poll['crosspost_message_ids']:
-			for ch in crossposts:
-				try:
-					msg = await ch.fetch_message(mid)
-				except NotFound:
-					continue
-				else:
-					await msg.edit(**txt)
+		if poll['crosspost_message_ids']:
+			for mid in poll['crosspost_message_ids']:
+				for ch in crossposts:
+					try:
+						msg = await ch.fetch_message(mid)
+					except NotFound:
+						continue
+					else:
+						await msg.edit(**txt)
 
 	async def updatevotes(self, poll):
 		votes = await self.bot.db.fetch("SELECT \"{}\" FROM pollsvotes".format(poll['id']))
@@ -1682,13 +1683,13 @@ class PollsCog(commands.Cog, name = "Polls"):
 			return await interaction.followup.send(f"This poll has already been published!")
 
 
-
-		end_time = duration if duration and duration >= discord.utils.utcnow().timestamp() else None
+		current = discord.utils.utcnow()
+		end_time = duration if duration and duration >= current.timestamp() else None
 		if end_time:
 			end = datetime.datetime.fromtimestamp(end_time, datetime.timezone.utc)
-			duration = end_time - scheduled.timestamp()
+			duration = end_time - current.timestamp()
 
-			if (end_time - current.timestamp()) < 0:
+			if duration < 0:
 				return await interaction.followup.send(f"You're trying to end the poll in the past! <t:{int(end_time)}:F>, <t:{int(end_time)}:R>")
 		else:
 			end = None
