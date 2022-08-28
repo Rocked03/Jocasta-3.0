@@ -420,12 +420,13 @@ class PollsCog(commands.Cog, name = "Polls"):
 			max_vote = max(poll['votes'])
 			for c, v, n in zip(poll['choices'], poll['votes'], range(len(poll['choices']))):
 				if poll['show_voting']:
-					if max_vote: x = (v * max_length) // max_vote
-					else: x = 0
+					if max_vote: p = v // max_vote
+					else: p = 0
+					x = p * max_length
 					if poll['show_options']:
-						embed.add_field(name = f"{self.lineformats[4]} {c}", value = f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)}", inline = False)
+						embed.add_field(name = f"{self.lineformats[4]} {c}", value = f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({round(p * 100, 2)}%)", inline = False)
 					else:
-						txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)}")
+						txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({round(p * 100, 2)}%)")
 				elif poll['show_options']:
 					txt.append(f"{self.choiceformat(n)} {poll['choices'][n]}")
 			txt.append(f"Total votes: **{sum(poll['votes'])}**")
@@ -511,8 +512,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 			max_length = 10
 			max_vote = max(poll['votes'])
 			for c, v, n in zip(poll['choices'], poll['votes'], range(len(poll['choices']))):
-				x = (v * max_length) // max_vote if max_vote else 0
-				txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)}")
+				p = v // max_vote if max_vote else 0
+				x = p * max_length
+				txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({round(p * 100, 2)}%)")
 
 			ishidden = not poll['show_voting']
 
