@@ -91,6 +91,7 @@ x me command single polls
 x on-startup views check for archived polls
 - countdown command
 
+- admin: see who's voted
 
 
 - make a poll object
@@ -111,7 +112,7 @@ x questions with same time diff tags processed separately
 
 '''
 
-# id (int), num (int), time (datetime), message_id (int), question (str), thread_question (str), choices (str[]), votes (int[]), image (str), published (bool), duration (datetime), guildid (int), description (str), tag (int), show_question (bool), show_options (bool), show_voting (bool), active (bool), crosspost_message_ids (int[])
+# id (int), num (int), time (datetime), message_id (int), question (str), thread_question (str), choices (str[]), votes (int[]), image (str), published (bool), duration (datetime), guild_id (int), description (str), tag (int), show_question (bool), show_options (bool), show_voting (bool), active (bool), crosspost_message_ids (int[])
 
 def poll_manager_only():
 	async def actual_check(interaction: Interaction):
@@ -191,10 +192,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 
-	choiceformats = ['<:A_poll:1010385130851926046>', '<:B_p:1010385134412898345>', '<:C_p:1010385137596383242>', '<:D_p:1010385139899056208>', '<:E_p:1010385142340132917>', '<:F_p:1010385145754292224>', '<:G_p:1010385149176840302>', '<:H_p:1010385151890575471>']
+	choiceformats = ['<:A_p:1013463917843976212>', '<:B_p:1013463919794335914>', '<:C_p:1013463921614651463>', '<:D_p:1013463923531460628>', '<:E_p:1013463925049802934>', '<:F_p:1013463927276974170>', '<:G_p:1013463930204594206>', '<:H_p:1013463932171718666>']
 	choiceformat = lambda self, x: self.choiceformats[x]
 	
-	lineformats = ['<:lf:1010385160363057221>', '<:le:1010385155019505826>', '<:lfc:1010385164095979560>', '<:lec:1010385157032783933>', '<:ld:1010391538934759426>']
+	lineformats = ['<:lf:1013463941172703344>', '<:le:1013463936135331860>', '<:lfc:1013463943202738276>', '<:lec:1013463939327205467>', '<:ld:1013463933966884865>']
 	def lineformat(self, x):
 		if not x: return self.lineformats[3]
 
@@ -1269,18 +1270,45 @@ class PollsCog(commands.Cog, name = "Polls"):
 				return await interaction.followup.send("Please select an available tag.")
 
 
-		# id (int), num (int), time (datetime), message_id (int), question (str), thread_question (str), choices (str[]), votes (int[]), image (str), published (bool), duration (datetime), guildid (int), description (str), tag (int), show_question (bool), show_options (bool), show_voting (bool), active (bool), crosspost_message_ids (int[])
-		await self.bot.db.execute(
-			"INSERT INTO polls VALUES ($1, null, null, null, $2, $3, $4, null, $5, false, null, $6, $7, $8, $9, $10, $11, False, $12)", 
-			poll_id, question, thread_question, choices, image, interaction.guild_id, description, tag, show_question, show_options, show_voting, []
+		# id (int), num (int), time (datetime), message_id (int), question (str), thread_question (str), choices (str[]), votes (int[]), image (str), published (bool), duration (datetime), guild_id (int), description (str), tag (int), show_question (bool), show_options (bool), show_voting (bool), active (bool), crosspost_message_ids (int[])
+
+		# await self.bot.db.execute(
+		# 	"INSERT INTO polls VALUES ($1, null, null, null, $2, $3, $4, null, $5, false, null, $6, $7, $8, $9, $10, $11, false, $12)", 
+		# 	poll_id, question, thread_question, choices, image, interaction.guild_id, description, tag, show_question, show_options, show_voting, []
+		# )
+
+
+		insert = {
+			'id': poll_id,
+			'question': question,
+			'published': False,
+			'active': False,
+			'guild_id': interaction.guild_id,
+			'choices': choices,
+			'votes': None,
+			'time': None,
+			'duration': None,
+			'num': None,
+			'message_id': None,
+			'crosspost_message_ids': None,
+			'tag': tag,
+			'image': image,
+			'description': description,
+			'thread_question': thread_question,
+			'show_question': show_question,
+			'show_options': show_options,
+			'show_voting': show_voting,
+		}
+		await self.bot.db.execute(f'''
+				INSERT INTO polls
+					({", ".join(insert.keys())})
+				VALUES
+					({", ".join(f"${i}" for i in range(1, len(insert) + 1))})
+			''',
+			*insert.values()
 		)
 
-		# embed = discord.Embed(title = question, description = description, colour = await self.tagcolour(tag), timestamp=discord.utils.utcnow())
-		# embed.add_field(name = "Choices", value = "\n".join([f'- {i}' for i in choices]), inline = False)
-		# embed.add_field(name = "Thread Question", value = thread_question if thread_question else "`None`")
-		# if tag: embed.add_field(name = "Tag", value = f"`{await self.tagname(tag)}`")
-		# if image: embed.set_image(url = image)
-		# embed.set_footer(text = poll_id)
+
 
 		poll = await self.fetchpoll(poll_id)
 		embed = await self.pollinfoembed(poll)
@@ -1814,6 +1842,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 				return await interaction.followup.send(f"Your keyword input `{keyword}` seems to have failed. Please make sure to only search using alphanumeric characters.")
 
 			polls = [i for i in polls if await self.canview(i, interaction.guild_id)]
+			if not await self.hasmanagerperms(interaction):
+				polls = [i for i in polls if i['published']]
 			polls = self.sortpolls(polls, sort)
 
 			if not polls:
