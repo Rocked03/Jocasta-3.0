@@ -1,4 +1,5 @@
 import asyncio, asyncpg, copy, datetime, discord, enum, math, random, re, sys, traceback
+from config import *
 from discord import *
 from discord.ext import commands
 from discord.app_commands import *
