@@ -420,9 +420,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 			max_vote = max(poll['votes'])
 			for c, v, n in zip(poll['choices'], poll['votes'], range(len(poll['choices']))):
 				if poll['show_voting']:
-					if max_vote: p = v // max_vote
-					else: p = 0
-					x = p * max_length
+					x = (v * max_length) // max_vote if max_vote else 0
+					p = v / max_vote if max_vote else 0
 					if poll['show_options']:
 						embed.add_field(name = f"{self.lineformats[4]} {c}", value = f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({round(p * 100, 2)}%)", inline = False)
 					else:
@@ -512,8 +511,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 			max_length = 10
 			max_vote = max(poll['votes'])
 			for c, v, n in zip(poll['choices'], poll['votes'], range(len(poll['choices']))):
-				p = v // max_vote if max_vote else 0
-				x = p * max_length
+				x = (v * max_length) // max_vote if max_vote else 0
+				p = v / max_vote if max_vote else 0
 				txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({round(p * 100, 2)}%)")
 
 			ishidden = not poll['show_voting']
