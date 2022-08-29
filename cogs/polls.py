@@ -425,9 +425,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 					x = (v * max_length) // max_vote if max_vote else 0
 					p = v / total_votes if total_votes else 0
 					if poll['show_options']:
-						embed.add_field(name = f"{self.lineformats[4]} {c}", value = f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({round(p * 100, 2)}%)", inline = False)
+						embed.add_field(name = f"{self.lineformats[4]} {c}", value = f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({int(round(p * 100, 0))}%)", inline = False)
 					else:
-						txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({int(round(p * 100, ))}%)")
+						txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({int(round(p * 100, 0))}%)")
 				elif poll['show_options']:
 					txt.append(f"{self.choiceformat(n)} {poll['choices'][n]}")
 			txt.append(f"Total votes: **{sum(poll['votes'])}**")
