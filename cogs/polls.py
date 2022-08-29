@@ -1185,12 +1185,11 @@ class PollsCog(commands.Cog, name = "Polls"):
 					await thread.add_user(interaction.user)
 			except Forbidden:
 				pass
-			finally:
-				if poll and choice is not None:
-					pass
-					embed = discord.Embed()
-					embed.description = f"{interaction.user.mention} voted for {self.choiceformat(choice)} *{poll['choices'][choice]}*\nIn this thread, discuss: {poll['thread_question']}"
-					await thread.send(embed=embed)
+			# finally:
+			# 	if poll and choice is not None:
+			# 		embed = discord.Embed()
+			# 		embed.description = f"{interaction.user.mention} voted for {self.choiceformat(choice)} *{poll['choices'][choice]}*\nIn this thread, discuss: {poll['thread_question']}"
+			# 		await thread.send(embed=embed)
 
 
 
