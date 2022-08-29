@@ -86,7 +86,7 @@ x set up better config
 
 x me command single polls
 - delete message doesn't break bot
-- move database to testing
+x move database to testing
 - check perms for commands
 
 x on-startup views check for archived polls
@@ -215,11 +215,26 @@ class PollsCog(commands.Cog, name = "Polls"):
 			return await self.bot.db.fetch("SELECT * FROM polls WHERE CAST(id AS TEXT) LIKE $1 AND published = true", f"{poll_id}%")
 
 	async def searchpollsbykeyword(self, keyword, showunpublished = False):
-		if showunpublished:
-			return await self.bot.db.fetch("SELECT * FROM polls WHERE question ~* $1", keyword)
-		else:
-			return await self.bot.db.fetch("SELECT * FROM polls WHERE question ~* $1 AND published = true", keyword)
+		# if showunpublished:
+		# 	return await self.bot.db.fetch("SELECT * FROM polls WHERE question ~* $1", keyword)
+		# else:
+		# 	return await self.bot.db.fetch("SELECT * FROM polls WHERE question ~* $1 AND published = true", keyword)
+		results = await self.fetchallpolls(showunpublished)
 
+		return self.keywordsearch(keyword, results)
+
+		
+
+	def keywordsearch(self, keyword, polls):
+		alnum = lambda x: re.sub(r'[\W_]+', '', x.lower())
+		lowered = alnum(keyword)
+		return [i for i in polls if (any(lowered in alnum(i[j]) for j in ['question', 'thread_question', 'description'] if isinstance(i[j], str)) or any(lowered in alnum(j) for j in i['choices']))]
+
+	async def fetchallpolls(self, showunpublished = False):
+		if showunpublished:
+			return await self.bot.db.fetch("SELECT * FROM polls")
+		else:
+			return await self.bot.db.fetch("SELECT * FROM polls WHERE published = true")
 
 	async def fetchpoll(self, poll_id: int):
 		return await self.bot.db.fetchrow("SELECT * FROM polls WHERE id = $1", poll_id)
@@ -460,7 +475,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				value = "Vote now!"
 
 
-		if showextra:
+		if showextra and poll['published']:
 			if interaction.guild_id == poll['guild_id']:
 				msg = await interaction.guild.get_channel(guild['default_channel_id']).fetch_message(poll['message_id'])
 			elif tag and interaction.guild_id in tag['crosspost_servers']:
@@ -589,7 +604,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		else:
 			results = await self.searchpollsbykeyword(current, await self.hasmanagerperms(interaction))
 			lowered = current.lower()
-			regex = [f"^\b{lowered}\b", f"\b{lowered}\b", f"^{lowered}", lowered]
+			regex = [f"^\b{lowered}\b", f"\b{lowered}\b", f"^{lowered}", lowered, ""]
 			results = self.sortpolls(results)
 			results.sort(key = lambda x: [bool(re.search(i, x['question'].lower())) for i in regex].index(True))
 
@@ -678,7 +693,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 
-	async def splitstartpolls(self, poll_ids: list, *, set_time = None):
+	async def splitstartpolls(self, poll_ids: list, *, set_time = None, natural = False):
 		if not isinstance(poll_ids, list):
 			poll_ids = [poll_ids]
 
@@ -691,7 +706,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			else: polls[tid] = [poll_id]
 
 		for t, p in polls.items():
-			await self.startpolls(p, set_time = set_time)
+			await self.startpolls(p, set_time = set_time, natural = natural)
 
 	async def startpoll(self, poll_id, **kwargs):
 		return await self.startpolls([poll_id], **kwargs)
@@ -1819,8 +1834,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 			text = []
 			# keyword, tag, published
 			if keyword:
-				queries.append("(question ~* ${} OR thread_question ~* ${} OR ${} ~! ANY(choices))")
-				values += [keyword, keyword, keyword]
+				# queries.append("(question ~* ${} OR thread_question ~* ${} OR ${} ~! ANY(choices))")
+				# values += [keyword, keyword, keyword]
 				text.append(f"Keyword search: `{keyword}`")
 			if tag:
 				if tag != int(notag):
@@ -1847,7 +1862,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 			try:
 				if not queries: polls = await self.bot.db.fetch("SELECT * FROM polls")
-				else: polls = await self.bot.db.fetch(f"SELECT * FROM polls WHERE {' AND '.join(queries).format(*list(range(1, len(values) + 1)))}", *values)
+				else:
+					polls = await self.bot.db.fetch(f"SELECT * FROM polls WHERE {' AND '.join(queries).format(*list(range(1, len(values) + 1)))}", *values)
+				if keyword:
+					polls = self.keywordsearch(keyword, polls)
 			except asyncpg.exceptions.InvalidRegularExpressionError:
 				return await interaction.followup.send(f"Your keyword input `{keyword}` seems to have failed. Please make sure to only search using alphanumeric characters.")
 
