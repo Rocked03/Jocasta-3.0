@@ -91,6 +91,7 @@ x me command single polls
 
 x on-startup views check for archived polls
 - countdown command
+- upload to imgur command
 
 - admin: see who's voted
 
@@ -265,7 +266,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	async def ismanagechannel(self, channelid: int):
-		return bool(await self.fetchguildinfobymanagechannel(channelid))
+		return await self.fetchguildinfobymanagechannel(channelid) is not None
 
 	async def validguild(self, interaction: discord.Interaction):
 		return await self.fetchguildinfo(interaction.guild_id) is not None
@@ -426,7 +427,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 					if poll['show_options']:
 						embed.add_field(name = f"{self.lineformats[4]} {c}", value = f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({round(p * 100, 2)}%)", inline = False)
 					else:
-						txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({round(p * 100, 2)}%)")
+						txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({int(round(p * 100, ))}%)")
 				elif poll['show_options']:
 					txt.append(f"{self.choiceformat(n)} {poll['choices'][n]}")
 			txt.append(f"Total votes: **{sum(poll['votes'])}**")
@@ -1186,6 +1187,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				pass
 			finally:
 				if poll and choice is not None:
+					pass
 					embed = discord.Embed()
 					embed.description = f"{interaction.user.mention} voted for {self.choiceformat(choice)} *{poll['choices'][choice]}*\nIn this thread, discuss: {poll['thread_question']}"
 					await thread.send(embed=embed)
