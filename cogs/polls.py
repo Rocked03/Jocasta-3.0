@@ -126,6 +126,11 @@ def owner_only():
 		return await interaction.client.is_owner(interaction.user)
 	return app_commands.check(actual_check)
 
+def valid_guild_only():
+	async def actual_check(interaction: Interaction):
+		bot = interaction.client
+		return await bot.validguild(interaction) or await bot.ismanagechannel(interaction.channel_id)
+
 
 class PollsCog(commands.Cog, name = "Polls"):
 	"""Polls commands"""
@@ -291,6 +296,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	async def hasmanagerpermsbyuserandids(self, user, guild_id, channel_id = None):
 		guild = await self.bot.db.fetchrow("SELECT * FROM pollsinfo WHERE guild_id = $1", guild_id)
+		if not guild: return []
 		if channel_id:
 			manage_channels = await self.bot.db.fetch("SELECT * FROM pollsinfo WHERE manage_channel_id && $1", [channel_id])
 		else: manage_channels = []
@@ -1267,6 +1273,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	@pollsgroup.command(name="create")
 	@poll_manager_only()
+	@valid_guild_only()
 	@app_commands.describe(
 		question = "Main Poll Question to ask.",
 		description = "Additional notes/description about the question.",
@@ -1362,6 +1369,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	@pollsgroup.command(name="delete")
 	@poll_manager_only()
+	@valid_guild_only()
 	@app_commands.describe(poll_id = "5-digit ID of the poll to delete.")
 	async def polldelete(self, interaction: discord.Interaction, poll_id: int):
 		"""Deletes a poll question."""
@@ -1419,6 +1427,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	@pollsgroup.command(name="edit")
 	@poll_manager_only()
+	@valid_guild_only()
 	@app_commands.describe(
 		poll_id = "5-digit ID of the poll to edit.",
 		question = "Main Poll Question to ask.",
@@ -1566,6 +1575,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	@pollsgroup.command(name="schedule")
 	@poll_manager_only()
+	@valid_guild_only()
 	@app_commands.describe(
 		poll_id = "5-digit ID of the poll to schedule.",
 		schedule_time = "Scheduled time for the poll to start. Given in Epoch timestamp (UTC). Leave empty if published, or want to leave the scheduled date unchanged. Set to -1 to clear.",
@@ -1692,6 +1702,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	@pollsgroup.command(name="start")
 	@poll_manager_only()
+	@valid_guild_only()
 	@app_commands.describe(
 		poll_id = "5-digit ID of the poll to start.",
 		duration = "Duration for poll to run. Can pass Epoch timestamp (UTC) as the ending time instead. Can give number of seconds as raw value.",
@@ -1755,6 +1766,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	@pollsgroup.command(name="end")
 	@poll_manager_only()
+	@valid_guild_only()
 	@app_commands.describe(poll_id = "5-digit ID of the poll to end.")
 	async def pollend(self, interaction: discord.Interaction, 
 		poll_id: int
@@ -1786,6 +1798,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	@pollsgroup.command(name="search")
+	@valid_guild_only()
 	@app_commands.describe(
 		poll_id = "ID (5-digit or #) of the poll to search for.",
 		keyword = "Keyword to search for. Searches the question and thread question. Case-insensitive.",
@@ -1928,6 +1941,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	@pollsgroup.command(name="me")
+	@valid_guild_only()
 	@app_commands.describe(
 		show_unvoted = "Shows all the polls you haven't voted on yet!",
 		user = "Views history of a specified user.",
