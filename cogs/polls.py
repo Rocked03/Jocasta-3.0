@@ -78,7 +78,7 @@ x ditto for schedule embed
 - format duration in info embed
 x new embed for pretty
 
-- fix search with better regex or smth
+x fix search with better regex or smth
 
 - timestamp creator command
 
@@ -87,7 +87,7 @@ x set up better config
 x me command single polls
 - delete message doesn't break bot
 x move database to testing
-- check perms for commands
+x check perms for commands
 
 x on-startup views check for archived polls
 - countdown command
@@ -130,6 +130,7 @@ def valid_guild_only():
 	async def actual_check(interaction: Interaction):
 		bot = interaction.client
 		return await bot.validguild(interaction) or await bot.ismanagechannel(interaction.channel_id)
+	return app_commands.check(actual_check)
 
 
 class PollsCog(commands.Cog, name = "Polls"):
