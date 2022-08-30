@@ -159,6 +159,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 		}
 
 		self.bot.hasmanagerperms = self.hasmanagerperms
+		self.bot.ismanagechannel = self.ismanagechannel
+		self.bot.validguild = self.validguild
 
 		self.bot.loop.create_task(self.on_startup_scheduler())
 
@@ -288,11 +290,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	async def ismanagechannel(self, channelid: int):
 		return await self.fetchguildinfobymanagechannel(channelid) is not None
-	self.bot.ismanagechannel = self.ismanagechannel
 
 	async def validguild(self, interaction: discord.Interaction):
 		return await self.fetchguildinfo(interaction.guild_id) is not None
-	self.bot.validguild = self.validguild
 
 	async def hasmanagerperms(self, interaction: discord.Interaction):
 		return await self.hasmanagerpermsbyuserandids(interaction.user, interaction.guild_id, interaction.channel_id)
