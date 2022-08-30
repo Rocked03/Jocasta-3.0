@@ -1302,7 +1302,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		choices = [i for i in [opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_7, opt_8] if i]
 
-		if image and image.content_type.split('/')[0] == 'image'
+		if image and image.content_type.split('/')[0] == 'image':
 			image = image.url
 
 		while True:
@@ -1458,7 +1458,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		clearvalue = "-clear"
 
-		if image and image.content_type.split('/')[0] == 'image'
+		if image and image.content_type.split('/')[0] == 'image':
 			image = image.url
 
 		poll = await self.fetchpoll(poll_id)
