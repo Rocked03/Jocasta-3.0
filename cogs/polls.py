@@ -1291,7 +1291,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			opt_1: str, opt_2: str, 
 			description: str = None,
 			thread_question: str = None,
-			image: str = None,
+			image: Attachment = None,
 			tag: str = None,
 			opt_3: str = None, opt_4: str = None, opt_5: str = None, opt_6: str = None, opt_7: str = None, opt_8: str = None,
 			show_question: bool = True, show_options: bool = True, show_voting: bool = True
@@ -1301,6 +1301,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 		await interaction.response.defer()
 
 		choices = [i for i in [opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_7, opt_8] if i]
+
+		if image and image.content_type.split('/')[0] == 'image'
+			image = image.url
 
 		while True:
 			poll_id = random.randint(10000, 99999)
@@ -1444,7 +1447,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			question: str = None,
 			description: str = None,
 			thread_question: str = None,
-			image: str = None,
+			image: Attachment = None,
 			tag: str = None,
 			opt_1: str = None, opt_2: str = None, opt_3: str = None, opt_4: str = None, opt_5: str = None, opt_6: str = None, opt_7: str = None, opt_8: str = None,
 			show_question: bool = None, show_options: bool = None, show_voting: bool = None
@@ -1455,6 +1458,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		clearvalue = "-clear"
 
+		if image and image.content_type.split('/')[0] == 'image'
+			image = image.url
 
 		poll = await self.fetchpoll(poll_id)
 
