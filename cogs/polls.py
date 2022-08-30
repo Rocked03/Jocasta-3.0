@@ -455,9 +455,16 @@ class PollsCog(commands.Cog, name = "Polls"):
 				embed.add_field(name = "Choices", value = '\n'.join(txt), inline = False)
 			else:
 				if not poll['show_options']:
-					embed.add_field(name = "Choices", value = '\n'.join(txt[:4]), inline = False)
-					if txt[4:]:
-						embed.add_field(name ="--", value = '\n'.join(txt[4:]), inline = False)
+
+					cap = 0
+					while len('\n'.join(txt[:cap + 1])) <= 1024:
+						if cap == len(txt):
+							break
+						cap += 1
+
+					embed.add_field(name = "Choices", value = '\n'.join(txt[:cap]), inline = False)
+					if txt[cap:]:
+						embed.add_field(name ="--", value = '\n'.join(txt[cap:]), inline = False)
 				else:
 					embed.add_field(name = "Voting", value = '\n'.join(txt))
 
@@ -535,9 +542,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 			ishidden = not poll['show_voting']
 
-			embed.add_field(name = f"Votes {'(not revealed publicly, keep it a secret!)' if ishidden else ''}", value = '\n'.join(txt[:4]), inline = False)
-			if txt[4:]:
-				embed.add_field(name ="--", value = '\n'.join(txt[4:]), inline = False)
+			cap = 0
+			while len('\n'.join(txt[:cap + 1])) <= 1024:
+				if cap == len(txt):
+					break
+				cap += 1
+
+			embed.add_field(name = f"Votes {'(not revealed publicly, keep it a secret!)' if ishidden else ''}", value = '\n'.join(txt[:cap]), inline = False)
+			if txt[cap:]:
+				embed.add_field(name ="--", value = '\n'.join(txt[cap:]), inline = False)
 
 		else:
 			embed.add_field(name = "Votes", value = "Votes are hidden!")
