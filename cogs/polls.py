@@ -1093,7 +1093,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				else:
 					await interaction.followup.send(f"**Cleared** your vote on the poll {qid}", ephemeral = True)
 
-				await client.add_to_thread(interaction, poll, value)
+				# await client.add_to_thread(interaction, poll, value)
 
 			else:
 				await interaction.followup.send(f"This poll has ended!", ephemeral = True)
@@ -1190,7 +1190,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		else:
 			return vote[str(poll['id'])]
 
-	async def add_to_thread(self, interaction, poll = None, choice = None):
+	async def add_to_thread(self, interaction, poll = None, choice = None, show_vote = False):
 		thread = interaction.message.guild.get_channel_or_thread(interaction.message.id)
 		if thread and poll['thread_question']:
 			try:
@@ -1200,11 +1200,11 @@ class PollsCog(commands.Cog, name = "Polls"):
 					await thread.add_user(interaction.user)
 			except Forbidden:
 				pass
-			# finally:
-			# 	if poll and choice is not None:
-			# 		embed = discord.Embed()
-			# 		embed.description = f"{interaction.user.mention} voted for {self.choiceformat(choice)} *{poll['choices'][choice]}*\nIn this thread, discuss: {poll['thread_question']}"
-			# 		await thread.send(embed=embed)
+			finally:
+				if show_vote and poll and choice is not None:
+					embed = discord.Embed()
+					embed.description = f"{interaction.user.mention} voted for {self.choiceformat(choice)} *{poll['choices'][choice]}*\nIn this thread, discuss: {poll['thread_question']}"
+					await thread.send(embed=embed)
 
 
 
