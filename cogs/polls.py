@@ -1247,7 +1247,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 						embed = discord.Embed()
 						embed.description = f"Discuss: {poll['thread_question']}"
 						embed.set_footer(text = "See pins for the above question!")
-						await thread.send(f"{interaction.user.mention}, thanks for voting!", embed=embed, delete_after=15)
+						await thread.send(f"{interaction.user.mention}, thanks for voting!", embed=embed, delete_after=30)
 			except Forbidden:
 				pass
 			finally:
