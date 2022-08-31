@@ -161,6 +161,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 		self.bot.ismanagechannel = self.ismanagechannel
 		self.bot.validguild = self.validguild
 
+		self.maxqlength = 200
+
+
 		self.bot.loop.create_task(self.on_startup_scheduler())
 
 
@@ -657,7 +660,16 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		if returnresults: return results
 
-		choices = [app_commands.Choice(name = f"[{i['id']}] {i['question']}", value = i['id']) for i in results[:25]]
+		def truncate(x):
+			if len(x) > 100:
+				words = x.split(" ")
+				i = 1
+				while len(" ".join(words[:i+1])) <= 100 - 3 and i < len(words):
+					i += 1
+				return " ".join(words[:i]) + "..."
+			return x
+
+		choices = [app_commands.Choice(name = truncate(f"[{i['id']}] {i['question']}"), value = i['id']) for i in results[:25]]
 		return choices
 
 	async def autocomplete_duration(self, interaction: discord.Interaction, current: float, *, clear = None):
@@ -1312,6 +1324,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if image and image.content_type.split('/')[0] == 'image':
 			image = image.url
 
+		if len(question) > self.maxqlength:
+			return await interaction.followup.send_message(f"Question is too long! Must be less than {self.maxqlength} characters.")
+
 		while True:
 			poll_id = random.randint(10000, 99999)
 			if not await self.bot.db.fetchrow("SELECT id FROM polls WHERE id = $1", poll_id):
@@ -1467,6 +1482,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		if image and image.content_type.split('/')[0] == 'image':
 			image = image.url
+
+		if question and len(question) > self.maxqlength:
+			return await interaction.followup.send_message(f"Question is too long! Must be less than {self.maxqlength} characters.")
 
 		poll = await self.fetchpoll(poll_id)
 
