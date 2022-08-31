@@ -216,6 +216,17 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		return ''.join([self.lineformats[i] for i in txt])
 
+	def truncate(self, x, y = None, *, length = 100):
+		y = " " + y if y else ""
+		length -= len(y)
+		if len(x) > length:
+			words = x.split(" ")
+			i = 1
+			while len(" ".join(words[:i+1])) <= length - 3 and i < len(words):
+				i += 1
+			return " ".join(words[:i]) + "..." + y
+		return x
+
 
 
 	async def searchpollsbyid(self, poll_id, showunpublished = False):
@@ -660,16 +671,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		if returnresults: return results
 
-		def truncate(x):
-			if len(x) > 100:
-				words = x.split(" ")
-				i = 1
-				while len(" ".join(words[:i+1])) <= 100 - 3 and i < len(words):
-					i += 1
-				return " ".join(words[:i]) + "..."
-			return x
-
-		choices = [app_commands.Choice(name = truncate(f"[{i['id']}] {i['question']}"), value = i['id']) for i in results[:25]]
+		choices = [app_commands.Choice(name = self.truncate(f"[{i['id']}] {i['question']}"), value = i['id']) for i in results[:25]]
 		return choices
 
 	async def autocomplete_duration(self, interaction: discord.Interaction, current: float, *, clear = None):
@@ -1596,7 +1598,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		results.sort(key = lambda x: x['published'])
 
-		choices = [app_commands.Choice(name = f"[{i['id']}] {i['question']} {'{published}' if i['published'] else ''}", value = i['id']) for i in results[:25]]
+		choices = [app_commands.Choice(name = self.truncate(f"[{i['id']}] {i['question']}", f"{'{published}' if i['published'] else ''}"), value = i['id']) for i in results[:25]]
 		return choices
 
 	@polledit.autocomplete("tag")
@@ -1710,7 +1712,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		results.sort(key = lambda x: x['published'])
 
-		choices = [app_commands.Choice(name = f"[{i['id']}] {i['question']} {'{published}' if i['published'] else ''}", value = i['id']) for i in results[:25]]
+		choices = [app_commands.Choice(name = self.truncate(f"[{i['id']}] {i['question']}", f"{'{published}' if i['published'] else ''}"), value = i['id']) for i in results[:25]]
 		return choices
 
 	@pollschedule.autocomplete("duration")
