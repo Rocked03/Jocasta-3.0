@@ -1039,7 +1039,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		msg = await channel.fetch_message(poll['message_id'])
 
-		if txt == {i: getattr(msg, i) for i in ['content', 'view']} | {'embed': msg.embeds[0] if msg.embeds else None}:
+		if txt['content'] == msg.content and msg.embeds and msg.embeds[0] == txt['embed']:
 			return
 
 		await msg.edit(**txt)
