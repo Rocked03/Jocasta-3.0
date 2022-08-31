@@ -91,7 +91,6 @@ x check perms for commands
 
 x on-startup views check for archived polls
 - countdown command
-- upload to imgur command
 
 - admin: see who's voted
 
@@ -449,9 +448,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 					x = (v * max_length) // max_vote if max_vote else 0
 					p = v / total_votes if total_votes else 0
 					if poll['show_options']:
-						embed.add_field(name = f"{self.lineformats[4]} {c}", value = f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({int(round(p * 100, 0))}%)", inline = False)
+						embed.add_field(name = f"{self.lineformats[4]} {c}", value = f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({round(p * 100)}%)", inline = False)
 					else:
-						txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({int(round(p * 100, 0))}%)")
+						txt.append(f"{self.choiceformat(n)}{self.lineformat(x)} **{v}** vote{self.s(v)} ({round(p * 100)}%)")
 				elif poll['show_options']:
 					txt.append(f"{self.choiceformat(n)} {poll['choices'][n]}")
 			txt.append(f"Total votes: **{sum(poll['votes'])}**")
@@ -900,15 +899,18 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		guilds = [self.bot.get_guild(g) for g in {i.guild.id for i in [channel] + crossposts}]
 
-		if poll['thread_question']:
-			for thread_id in [poll['message_id']] + poll['crosspost_message_ids']:
-				for g in guilds:
-					thread = g.get_channel_or_thread(thread_id)
-					if thread is None:
-						continue
-					else:
-						await thread.edit(archived = True, locked = True)
-						break
+		try:
+			if poll['thread_question']:
+				for thread_id in [poll['message_id']] + poll['crosspost_message_ids']:
+					for g in guilds:
+						thread = g.get_channel_or_thread(thread_id)
+						if thread is None:
+							continue
+						else:
+							await thread.edit(archived = True, locked = True)
+							break
+		except Exception as e:
+			traceback.print_exc()
 
 		poll = await self.fetchpoll(poll['id'])
 		await self.updatepollmessage(poll)
@@ -1035,7 +1037,12 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		txt = await self.formatpollmessage(poll)
 
-		await (await channel.fetch_message(poll['message_id'])).edit(**txt)
+		msg = await channel.fetch_message(poll['message_id'])
+
+		if txt == {i: getattr(msg, i) for i in ['content', 'view']} | {'embed': msg.embeds[0] if msg.embeds else None}:
+			return
+
+		await msg.edit(**txt)
 
 		if poll['crosspost_message_ids']:
 			for mid in poll['crosspost_message_ids']:
@@ -2208,7 +2215,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		async def update_msg():
 			for poll in polls:
-				if poll['active']:
+				if poll['published']: # ['active']
 					await self.do_updatepollmessage(poll)
 		await task(update_msg, "update_msg")
 
