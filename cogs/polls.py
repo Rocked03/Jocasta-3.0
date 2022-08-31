@@ -1038,7 +1038,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		self.bot.updatemsg_flags.pop(poll['id'])
 
 
-	async def do_updatepollmessage(self, poll):
+	async def do_updatepollmessage(self, poll, force = False):
 		tag = await self.fetchtag(poll['tag'])
 		guild = await self.fetchguildinfo(poll['guild_id'])
 		channel_id = self.fetchchannelid(guild, tag)
@@ -1053,10 +1053,11 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		msg = await channel.fetch_message(poll['message_id'])
 
-		if txt['content'] == msg.content and msg.embeds and msg.embeds[0] == txt['embed']:
+		if not force and txt['content'] == msg.content and msg.embeds and msg.embeds[0] == txt['embed']:
 			return
 
-		await msg.edit(**txt)
+		if msg.author.id == self.bot.user.id:
+			await msg.edit(**txt)
 
 		if poll['crosspost_message_ids']:
 			for mid in poll['crosspost_message_ids']:
@@ -1066,7 +1067,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 					except NotFound:
 						continue
 					else:
-						await msg.edit(**txt)
+						if msg.author.id == self.bot.user.id:
+							await msg.edit(**txt)
 
 	async def updatevotes(self, poll):
 		votes = await self.bot.db.fetch("SELECT \"{}\" FROM pollsvotes".format(poll['id']))
@@ -1112,7 +1114,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 			self.add_item(self.InfoButton(
 				client, poll,
-				label = "📊",
+				emoji = "<:info:1014581512001294366>",
 				style = discord.ButtonStyle.green,
 				custom_id = str(poll['id']),
 				row = 2,
@@ -1136,7 +1138,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				else:
 					await interaction.followup.send(f"**Cleared** your vote on the poll {qid}", ephemeral = True)
 
-				# await client.add_to_thread(interaction, poll, value)
+				await client.add_to_thread(interaction, poll, value)
 
 			else:
 				await interaction.followup.send(f"This poll has ended!", ephemeral = True)
@@ -1240,14 +1242,20 @@ class PollsCog(commands.Cog, name = "Polls"):
 				try:
 					await thread.fetch_member(interaction.user.id)
 				except NotFound:
-					await thread.add_user(interaction.user)
+					# await thread.add_user(interaction.user)
+					if choice is not None:
+						embed = discord.Embed()
+						embed.description = f"Discuss: {poll['thread_question']}"
+						embed.set_footer(text = "See pins for the above question!")
+						await thread.send(f"{interaction.user.mention}, thanks for voting!", embed=embed, delete_after=15)
 			except Forbidden:
 				pass
 			finally:
-				if show_vote and poll and choice is not None:
-					embed = discord.Embed()
-					embed.description = f"{interaction.user.mention} voted for {self.choiceformat(choice)} *{poll['choices'][choice]}*\nIn this thread, discuss: {poll['thread_question']}"
-					await thread.send(embed=embed)
+				pass
+				# if show_vote and poll and choice is not None:
+				# 	embed = discord.Embed()
+				# 	embed.description = f"{interaction.user.mention} voted for {self.choiceformat(choice)} *{poll['choices'][choice]}*\nIn this thread, discuss: {poll['thread_question']}"
+				# 	await thread.send(embed=embed)
 
 
 
@@ -2148,8 +2156,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	@pollsadmingroup.command(name="sync")
+	@app_commands.describe(all_messages = "Update all messages, including inactive polls.")
 	@owner_only()
-	async def polladminsync(self, interaction: discord.Interaction):
+	async def polladminsync(self, interaction: discord.Interaction, all_messages: bool = False):
 		"""Force sync all automated poll routines"""
 		await interaction.response.defer()
 
@@ -2234,9 +2243,12 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 		async def update_msg():
-			for poll in polls:
-				if poll['published']: # ['active']
-					await self.do_updatepollmessage(poll)
+			pollfilter = 'published' if all_messages else 'active'
+			filtered = [i for i in polls if i[pollfilter]]
+			filtered.sort(key = lambda x: discord.utils.utcnow() - x['time'])
+			filtered.sort(key = lambda x: not x['active'])
+			for poll in filtered:
+				await self.do_updatepollmessage(poll, force = poll['active'])
 		await task(update_msg, "update_msg")
 
 
