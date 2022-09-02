@@ -225,7 +225,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			while len(" ".join(words[:i+1])) <= length - 3 and i < len(words):
 				i += 1
 			return " ".join(words[:i]) + "..." + y
-		return x
+		return x + y
 
 
 
@@ -1245,7 +1245,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 					# await thread.add_user(interaction.user)
 					if choice is not None:
 						embed = discord.Embed()
-						embed.description = f"Discuss: {poll['thread_question']}"
+						embed.description = f"Discuss: *{poll['thread_question']}*"
 						embed.set_footer(text = "See pins for the above question!")
 						await thread.send(f"{interaction.user.mention}, thanks for voting!", embed=embed, delete_after=30)
 			except Forbidden:
