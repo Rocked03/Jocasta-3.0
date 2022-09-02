@@ -814,6 +814,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 			return msg
 
+		await self.bot.db.execute("UPDATE polls SET crosspost_message_ids = $2 WHERE id = $1", poll['id'], [])
 		for txt, poll in msgs:
 			final.append([poll, await send(txt, poll, channel)])
 			for ch in crossposts:
@@ -915,7 +916,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		try:
 			if poll['thread_question']:
-				for thread_id in [poll['message_id']] + poll['crosspost_message_ids']:
+				for thread_id in [poll['message_id']] + (poll['crosspost_message_ids'] if poll['crosspost_message_ids'] else []):
 					for g in guilds:
 						thread = g.get_channel_or_thread(thread_id)
 						if thread is None:
