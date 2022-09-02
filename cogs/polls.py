@@ -1288,10 +1288,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 				if any(i not in user.roles for i in roles):
 					await user.add_roles(*roles)
-					return await interaction.response.send_message(f"Successfully assigned: {rolepings}", ephemeral = True)
+					return await interaction.response.send_message(f"Successfully **gave** you the roles: {rolepings}. Click again to remove.", ephemeral = True)
 				else:
 					await user.remove_roles(*roles)
-					return await interaction.response.send_message(f"Successfully unassigned: {rolepings}", ephemeral = True)
+					return await interaction.response.send_message(f"Sucessfully **removed** from you these roles: {rolepings}. Click again to re-add.", ephemeral = True)
 
 	async def on_startup_selfassign(self):
 		tags = await self.bot.db.fetch("SELECT * FROM pollstags WHERE end_message_self_assign = $1 and cardinality(end_message_role_ids) <> 0", True)
