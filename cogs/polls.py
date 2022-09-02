@@ -2172,6 +2172,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			"end_schedule": "End schedules",
 			"update_votes": "Update votes",
 			"update_msg": "Update poll messages",
+			"update_selfassign": "Update self-assign buttons"
 			}.items()}
 
 		async def update():
@@ -2251,6 +2252,11 @@ class PollsCog(commands.Cog, name = "Polls"):
 			for poll in filtered:
 				await self.do_updatepollmessage(poll, force = poll['active'])
 		await task(update_msg, "update_msg")
+
+
+		async def update_selfassign():
+			await self.on_startup_selfassign()
+		await task(update_selfassign, "update_selfassign")
 
 
 		# polls = await refreshpolls()
