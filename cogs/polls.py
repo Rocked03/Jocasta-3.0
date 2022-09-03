@@ -2028,7 +2028,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 				if not entries:
 					embed = discord.Embed(title = f"{user.name}'s Polls", colour = await self.fetchcolourbyid(await self.fetchguildid(interaction), None), timestamp = discord.utils.utcnow())
-					embed.add_field(name = "No votes", value = f"{'''You haven't''' if op else f'''{user.name} hasn't'''} voted for anything yet!" + (f"Use `/pollsme show_unvoted: true` to see all the polls you're able to vote on!'" if op else ''))
+					embed.add_field(name = "No votes", value = f"{'''You haven't''' if op else f'''{user.name} hasn't'''} voted for anything yet!" + (f"Use `/pollsme show_unvoted: true` to see all the polls you're able to vote on!" if op else ''))
 					embed.set_footer(text = f"Page 0/0 (0 results) | {user.id}")
 					return await msg.edit(embed=embed)
 
