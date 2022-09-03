@@ -2268,13 +2268,14 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		await interaction.response.defer()
 
-		try:
-			colour = colour.strip("#")
-			colour = int(colour, 16)
-			if not (0 <= colour <= 16777215):
-				raise ValueError
-		except ValueError:
-			return await interaction.followup.send("Please provide a valid colour hex code!")
+		if colour:
+			try:
+				colour = colour.strip("#")
+				colour = int(colour, 16)
+				if not (0 <= colour <= 16777215):
+					raise ValueError
+			except ValueError:
+				return await interaction.followup.send("Please provide a valid colour hex code!")
 
 		if ping_role and not end_message:
 			return await interaction.followup.send("You must set an end-message for role pings and self-assignment to function.")
