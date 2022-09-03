@@ -54,9 +54,9 @@ x show user history
   x show unvoted polls
 
 - tags
-  - create
+  x create
   - edit
-  - delete
+  - crosspost
 
 x end message repeat
 x end message ping
@@ -616,6 +616,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	pollsadmingroup = app_commands.Group(name="pollsadmin", description="Poll administrative commands", guild_ids=[288896937074360321, 1010550869391065169])
 
+	pollsadmintaggroup = app_commands.Group(name="tag", description="Tag management commands", parent=pollsadmingroup, guild_ids=[288896937074360321, 1010550869391065169])
+
 
 
 	async def autocomplete_tag(self, interaction: discord.Interaction, current: str, *, clear = None, clearname = "Clear tag."):
@@ -624,8 +626,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 			if current == clear:
 				return [emptychoice]
 		tags = await self.fetchtagsbyguildid(interaction.guild_id)
-		choices = [app_commands.Choice(name = t['name'], value = str(t['id'])) for t in tags if re.search(f"^{current.lower()}", t['name'], re.IGNORECASE)]
-		if current == "" and clear is not None: choices.append(emptychoice)
+		choices = [app_commands.Choice(name = t['name'], value = str(t['id'])) for t in tags if re.search(f"^{current.lower()}", t['name'], re.IGNORECASE)][:25]
+		if current == "" and clear is not None: 
+			choices = choices[:24]
+			choices.append(emptychoice)
 		return choices
 
 	async def autocomplete_searchbypollid(self, interaction: discord.Interaction, current: int, *, published = None, active = None, returnresults = False, local = True, crosspost = False):
@@ -1991,7 +1995,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		user = "Views history of a specified user.",
 		poll_id = "Shows your vote on a specific poll."
 		)
-	async def pollsme(self, interaction: discord.Interaction, show_unvoted: bool = False, user: discord.Member = None, poll_id: int = None):
+	async def pollsme(self, interaction: discord.Interaction, show_unvoted: bool = False, user: discord.User = None, poll_id: int = None):
 		"""Shows your poll voting history"""
 
 		await interaction.response.defer()
@@ -2236,6 +2240,155 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		print("~~~ End SYNC ~~~")
 
+
+	@pollsadmintaggroup.command(name="create")
+	@app_commands.describe(
+		name = "Name of the tag.",
+		channel = "Main channel that the tag sends polls to. Cannot be edited.",
+		num = "Starting value of incrementally labelled polls.",
+		colour = "Colour of the poll messages. Must be a hex code (e.g. #7298da)",
+		end_message = "Message to send after each poll. Required for role pings and self-assignment. Leave empty to ignore.",
+		ping_role = "Role to ping and self-assign after each poll. More roles can be added with /pollsadmin tag pingrole.",
+		do_ping = "Ping the role after each poll.",
+		do_role_assign = "Let users self-assign the ping role with a button.",
+		recycle_end_message = "Delete old end-messages when new end-message is sent."
+		)
+	@owner_only()
+	async def pollsadmintagcreate(self, interaction: discord.Interaction,
+		name: str,
+		channel: discord.TextChannel,
+		num: int = None,
+		colour: str = None,
+		end_message: str = None,
+		ping_role: discord.Role = None,
+		do_ping: bool = False,
+		do_role_assign: bool = False,
+		recycle_end_message: bool = True,
+		):
+		"""Creates a new tag."""
+
+		await interaction.response.defer()
+
+		try:
+			colour = colour.strip("#")
+			colour = int(colour, 16)
+			if not (0 <= colour <= 16777215):
+				raise ValueError
+		except ValueError:
+			return await interaction.followup.send("Please provide a valid colour hex code!")
+
+		if ping_role and not end_message:
+			return await interaction.followup.send("You must set an end-message for role pings and self-assignment to function.")
+
+		while True:
+			tag_id = random.randint(100, 999)
+			if not await self.bot.db.fetchrow("SELECT id FROM polls WHERE id = $1", tag_id):
+				break
+
+		insert = {
+			'id': tag_id,
+			'name': name,
+			'guild_id': interaction.guild_id,
+			'channel_id': channel.id,
+			'crosspost_channels': [],
+			'crosspost_servers': [],
+			'num': num,
+			'colour': colour,
+			'end_message': end_message,
+			'end_message_latest_ids': [],
+			'end_message_replace': recycle_end_message,
+			'end_message_role_ids': [],
+			'end_message_ping': do_ping,
+			'end_message_self_assign': do_role_assign,
+		}
+
+
+		embed = discord.Embed(
+			title = name,
+			description = '\n'.join([
+				f"{channel.mention} in *{interaction.guild.name}*",
+				f"Counting from **{num}**" if num else f"Not counting polls.",
+				f"Colour: #{hex(colour).strip('0x').upper()}" if colour else f"No colour.",
+				f"End-message:\n> {end_message}" if end_message else f"No end-message.",
+				"",
+				f"Recycle end-message: {recycle_end_message}",
+				f"Pinging role: {do_ping}",
+				f"Self-assigning role: {do_role_assign}"
+				]),
+			timestamp = discord.utils.utcnow(),
+			colour = colour
+			)
+
+		view = self.Confirm()
+
+		msg = await interaction.followup.send(
+			f"Do you want to create this tag? **It cannot be deleted, and you cannot change the default channel or guild once set.**",
+			embed = embed,
+			view = view
+			)
+
+		await view.wait()
+
+		for child in view.children:
+			child.disabled = True
+
+		if view.value is None:
+			await msg.edit(content = "Timed out.", view = view)
+		elif view.value:
+			await self.bot.db.execute(f'''
+					INSERT INTO pollstags
+						({", ".join(insert.keys())})
+					VALUES
+						({", ".join(f"${i}" for i in range(1, len(insert) + 1))})
+				''',
+				*insert.values()
+			)
+
+			await msg.edit(content = "Successfully created new tag.", view = None)
+
+
+		else:
+			await msg.edit(content = "Cancelled.", view = view)
+
+
+
+	@pollsadmintaggroup.command(name="pingrole")
+	@owner_only()
+	async def pollsadmintagpingrole(self, interaction: discord.Interaction, 
+		tag: str,
+		ping_role: discord.Role
+		):
+		"""Adds/removes role from tag."""
+
+		await interaction.response.defer()
+
+		if tag:
+			if tag.isdigit():
+				tag = await self.fetchtag(int(tag))
+				if not tag:
+					return await interaction.followup.send("Please select an available tag.")
+			else:
+				return await interaction.followup.send("Please select an available tag.")
+
+		roles = tag['end_message_role_ids']
+
+		if ping_role.id in roles:
+			roles.remove(ping_role.id)
+			txt = ["removed", "from"]
+		else:
+			roles.append(ping_role.id)
+			txt = ["added", "to"]
+
+		await self.bot.db.execute("UPDATE pollstags SET end_message_role_ids = $2 WHERE id = $1", tag['id'], roles)
+
+		await interaction.followup.send(
+			f"Successfully **{txt[0]}** {ping_role.mention} {txt[1]} the **{tag['name']}** ({tag['id']}) tag.",
+			allowed_mentions = discord.AllowedMentions.none())
+
+
+	@pollsadmintagpingrole.autocomplete("tag")
+	async def pollsadmintagpingrole_autocomplete_tag(self, interaction: discord.Interaction, current: str):
+		return await self.autocomplete_tag(interaction, current)
 
 
 

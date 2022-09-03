@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord.ext.commands import *
 from typing import *
 
-import datetime
+import datetime, traceback
 
 class OwnerCog(commands.Cog, name = "Owner"):
 	"""Owner commands"""
@@ -95,22 +95,26 @@ class OwnerCog(commands.Cog, name = "Owner"):
 		!sync id_1 id_2 -> syncs guilds with id 1 and 2
 		"""
 		if not guilds:
-			if spec == "~":
-				synced = await ctx.bot.tree.sync(guild=ctx.guild)
-			elif spec == "*":
-				ctx.bot.tree.copy_global_to(guild=ctx.guild)
-				synced = await ctx.bot.tree.sync(guild=ctx.guild)
-			elif spec == "^":
-				ctx.bot.tree.clear_commands(guild=ctx.guild)
-				await ctx.bot.tree.sync(guild=ctx.guild)
-				synced = []
-			else:
-				synced = await ctx.bot.tree.sync()
+			try:
+				if spec == "~":
+					synced = await ctx.bot.tree.sync(guild=ctx.guild)
+				elif spec == "*":
+					ctx.bot.tree.copy_global_to(guild=ctx.guild)
+					synced = await ctx.bot.tree.sync(guild=ctx.guild)
+				elif spec == "^":
+					ctx.bot.tree.clear_commands(guild=ctx.guild)
+					await ctx.bot.tree.sync(guild=ctx.guild)
+					synced = []
+				else:
+					synced = await ctx.bot.tree.sync()
 
-			await ctx.send(
-				f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
-			)
-			return
+				await ctx.send(
+					f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
+				)
+				return
+			except Exception as e:
+				traceback.print_exc()
+				await ctx.send("Something went wrong!")
 
 		ret = 0
 		for guild in guilds:
