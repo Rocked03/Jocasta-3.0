@@ -2000,6 +2000,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		op = True
 		if user is None: user = interaction.user
+		else: op = False
 
 		votes = await self.bot.db.fetchrow("SELECT * FROM pollsvotes WHERE user_id = $1", user.id)
 		if not votes:
