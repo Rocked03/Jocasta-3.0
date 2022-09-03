@@ -1722,9 +1722,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 		results = await self.autocomplete_searchbypollid(interaction, current, returnresults = True)
 		results = [i for i in results if not i['published'] or (i['published'] and i['active'])]
 
+		results.sort(key = lambda x: x['time'].timestamp() if x['time'] is not None else -1)
 		results.sort(key = lambda x: x['published'])
 
-		choices = [app_commands.Choice(name = self.truncate(f"[{i['id']}] {i['question']}", f"{'{published}' if i['published'] else ''}"), value = i['id']) for i in results[:25]]
+		choices = [app_commands.Choice(name = self.truncate(f"[{i['id']}] {i['question']}", f"{'{published}' if i['published'] else ('{scheduled}' if i['time'] else '')}"), value = i['id']) for i in results[:25]]
 		return choices
 
 	@pollschedule.autocomplete("duration")
