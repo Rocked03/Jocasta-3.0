@@ -1991,7 +1991,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		user = "Views history of a specified user.",
 		poll_id = "Shows your vote on a specific poll."
 		)
-	async def pollsme(self, interaction: discord.Interaction, show_unvoted: bool = False, user: int = None, poll_id: int = None):
+	async def pollsme(self, interaction: discord.Interaction, show_unvoted: bool = False, user: discord.Member = None, poll_id: int = None):
 		"""Shows your poll voting history"""
 
 		await interaction.response.defer()
@@ -2000,13 +2000,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		op = True
 		if user is None: user = interaction.user
-		else:
-			try:
-				user = int(user)
-				user = await self.bot.fetch_user(user)
-				op = False
-			except (NotFound, ValueError):
-				return await msg.edit(content = f"Couldn't find that user!")
 
 		votes = await self.bot.db.fetchrow("SELECT * FROM pollsvotes WHERE user_id = $1", user.id)
 		if not votes:
@@ -2130,28 +2123,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 	@pollsme.autocomplete("poll_id")
 	async def pollsme_autocomplete_poll_id(self, interaction: discord.Interaction, current: int):
 		return await self.autocomplete_searchbypollid(interaction, current, published = True, crosspost = True)
-
-	@pollsme.autocomplete("user")
-	async def pollsme_autocomplete_user(self, interaction: discord.Interaction, current: int):
-		if current is None:
-			return []
-
-		if current.isdigit():
-			member = interaction.guild.get_member(int(current))
-			if member is not None:
-				return [app_commands.Choice(name = str(member) + (f" ({member.nick})" if member.nick else ""), value = member.id)]
-
-		mems = interaction.guild.members
-
-		lowered = str(current)
-		mems = [i for i in mems if lowered in i.name.lower() or (lowered in i.nick.lower() if i.nick else False)]
-
-		regex = [f"^\b{lowered}\b", f"\b{lowered}\b", f"^{lowered}", lowered]
-		mems.sort(key = lambda x: x.name)
-		mems.sort(key = lambda x: [bool(re.search(i, j)) for i in regex for j in [x.name.lower()] + ([x.nick.lower()] if x.nick else [])].index(True))
-
-		return [app_commands.Choice(name = str(member) + (f" ({member.nick})" if member.nick else ""), value = member.id) for member in mems[:25]]
-
 
 
 
