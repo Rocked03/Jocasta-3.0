@@ -2241,6 +2241,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 		print("~~~ End SYNC ~~~")
 
 
+
+
 	@pollsadmintaggroup.command(name="create")
 	@app_commands.describe(
 		name = "Name of the tag.",
@@ -2298,7 +2300,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			'end_message': end_message,
 			'end_message_latest_ids': [],
 			'end_message_replace': recycle_end_message,
-			'end_message_role_ids': [],
+			'end_message_role_ids': [ping_role.id] if ping_role else [],
 			'end_message_ping': do_ping,
 			'end_message_self_assign': do_role_assign,
 		}
