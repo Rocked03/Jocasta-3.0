@@ -1969,7 +1969,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			PollSearchPaginator.text = text
 			PollSearchPaginator.colour = await self.fetchcolourbyid(await self.fetchguildid(interaction), None)
 
-			paginator = await PollSearchPaginator.start(msg, entries=polls, per_page=15)
+			paginator = await PollSearchPaginator.start(msg, entries=polls, per_page=10)
 			await paginator.wait()
 
 			for child in paginator.children:
