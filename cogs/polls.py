@@ -338,7 +338,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if tag.isdigit():
 			tagobj = await self.fetchtag(int(tag))
 			if tagobj and key(tagobj):
-				return int(tag)
+				return tagobj
 			else:
 				return None
 		else:
@@ -1485,6 +1485,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 	@app_commands.describe(
 		poll_id = "5-digit ID of the poll to edit.",
 		question = "Main Poll Question to ask.",
+		description = "Additional notes/description about the question.",
 		opt_1 = "Option 1.", opt_2 = "Option 2.", opt_3 = "Option 3.", opt_4 = "Option 4.", opt_5 = "Option 5.", opt_6 = "Option 6.", opt_7 = "Option 7.", opt_8 = "Option 8.",
 		thread_question = "Question to ask in the accompanying Thread.",
 		image = "Image to accompany Poll Question.",
@@ -1559,6 +1560,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
 			if tag is None:
 				return await interaction.followup.send("Please select an available tag.")
+			else: tag = tag['id']
 
 
 
@@ -1923,6 +1925,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				tag = await self.validtag(tag)
 				if tag is None:
 					return await interaction.followup.send("Please select an available tag.")
+				else: tag = tag['id']
 
 			queries = []
 			values = []
@@ -2412,10 +2415,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 		return await self.autocomplete_tag(interaction, current, local = False)
 
 
-	@pollsadmincrosspostgroup.command(name="add")
+	@pollsadmincrosspostgroup.command(name="link")
 	@owner_only()
-	async def pollsadmincrosspostadd(self, interaction, tag: str, channel: discord.TextChannel):
-		"""Adds a crosspost channel to a tag."""
+	async def pollsadmincrosspostlink(self, interaction, tag: str, channel: discord.TextChannel):
+		"""Links a channel to crossposts from a tag."""
 
 		await interaction.response.defer()
 
@@ -2424,11 +2427,58 @@ class PollsCog(commands.Cog, name = "Polls"):
 			if tag is None:
 				return await interaction.followup.send("Please select an available tag.")
 
-		
+		if channel.id == tag['channel_id']:
+			return await interaction.followup.send(f"{channel.mention} is already the host channel!")
+
+		channels = tag['crosspost_channels']
+		guilds = tag['crosspost_servers']
+
+		if channel.id in channels:
+			return await interaction.followup.send(f"{channel.mention} is already receiving crossposts!")
+
+		channels.append(channel.id)
+		guilds.append(channel.guild.id)
+
+		await self.bot.db.execute("UPDATE pollstags SET crosspost_channels = $2, crosspost_servers = $3 WHERE id = $1", tag['id'], channels, guilds)
+
+		await interaction.followup.send(f"Linked {channel.mention} to crossposts from *{tag['name']}* (`{tag['id']}`)")
+
+	@pollsadmincrosspostlink.autocomplete("tag")
+	async def pollsadmincrosspostlink_autocomplete_tag(self, interaction: discord.Interaction, current: str):
+		return await self.autocomplete_tag(interaction, current, local = False)
 
 
-	@pollsadmincrosspostadd.autocomplete("tag")
-	async def pollsadmincrosspostadd_autocomplete_tag(self, interaction: discord.Interaction, current: str):
+	@pollsadmincrosspostgroup.command(name="unlink")
+	@owner_only()
+	async def pollsadmincrosspostunlink(self, interaction, tag: str, channel: discord.TextChannel):
+		"""Unlinks a channel from crossposts from a tag."""
+
+		await interaction.response.defer()
+
+		if tag:
+			tag = await self.validtag(tag)
+			if tag is None:
+				return await interaction.followup.send("Please select an available tag.")
+
+		if channel.id == tag['channel_id']:
+			return await interaction.followup.send(f"{channel.mention} is the host channel!")
+
+		channels = tag['crosspost_channels']
+		guilds = tag['crosspost_servers']
+
+		if channel.id not in channels:
+			return await interaction.followup.send(f"{channel.mention} already isn't receiving crossposts!")
+
+		index = channels.index(channel.id)
+		channels.pop(index)
+		guilds.pop(index)
+
+		await self.bot.db.execute("UPDATE pollstags SET crosspost_channels = $2, crosspost_servers = $3 WHERE id = $1", tag['id'], channels, guilds)
+
+		await interaction.followup.send(f"Unlinked {channel.mention} from crossposts from *{tag['name']}* (`{tag['id']}`)")
+
+	@pollsadmincrosspostunlink.autocomplete("tag")
+	async def pollsadmincrosspostunlink_autocomplete_tag(self, interaction: discord.Interaction, current: str):
 		return await self.autocomplete_tag(interaction, current, local = False)
 
 
