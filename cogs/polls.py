@@ -334,6 +334,17 @@ class PollsCog(commands.Cog, name = "Polls"):
 			return tag and guild_id in tag['crosspost_servers']
 
 
+	async def validtag(self, tag, key = lambda x: True):
+		if tag.isdigit():
+			tagobj = await self.fetchtag(int(tag))
+			if tagobj and key(tagobj):
+				return int(tag)
+			else:
+				return None
+		else:
+			return None
+
+
 
 	class Confirm(discord.ui.View):
 		def __init__(self):
@@ -617,14 +628,19 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	pollsadmintaggroup = app_commands.Group(name="tag", description="Tag management commands", parent=pollsadmingroup, guild_ids=guild_ids)
 
+	pollsadmincrosspostgroup = app_commands.Group(name="crosspost", description="Crosspost management commands", parent=pollsadmingroup, guild_ids=guild_ids)
 
 
-	async def autocomplete_tag(self, interaction: discord.Interaction, current: str, *, clear = None, clearname = "Clear tag."):
+
+	async def autocomplete_tag(self, interaction: discord.Interaction, current: str, *, clear = None, clearname = "Clear tag.", local = True):
 		if clear is not None:
 			emptychoice = app_commands.Choice(name = clearname, value = clear)
 			if current == clear:
 				return [emptychoice]
-		tags = await self.fetchtagsbyguildid(interaction.guild_id)
+		if local:
+			tags = await self.fetchtagsbyguildid(interaction.guild_id)
+		else:
+			tags = await self.fetchalltags()
 		choices = [app_commands.Choice(name = t['name'], value = str(t['id'])) for t in tags if re.search(f"^{current.lower()}", t['name'], re.IGNORECASE)][:25]
 		if current == "" and clear is not None: 
 			choices = choices[:24]
@@ -1347,13 +1363,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 				break
 
 		if tag:
-			if tag.isdigit():
-				tagobj = await self.fetchtag(int(tag))
-				if tagobj and tagobj['guild_id'] == await self.fetchguildid(interaction):
-					tag = int(tag)
-				else:
-					return await interaction.followup.send("Please select an available tag.")
-			else:
+			tag = await self.validtag(tag, lambda x: x['guild_id'] == await self.fetchguildid(interaction))
+			if tag is None:
 				return await interaction.followup.send("Please select an available tag.")
 
 
@@ -1533,14 +1544,18 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if poll['published'] and tag:
 			return await interaction.followup.send("You can't edit tags once the poll's been published!")
 
+		# if tag:
+		# 	if tag.isdigit():
+		# 		tagobj = await self.fetchtag(int(tag))
+		# 		if tagobj and tagobj['guild_id'] == await self.fetchguildid(interaction):
+		# 			tag = int(tag)
+		# 		else:
+		# 			return await interaction.followup.send("Please select an available tag.")
+		# 	else:
+		# 		return await interaction.followup.send("Please select an available tag.")
 		if tag:
-			if tag.isdigit():
-				tagobj = await self.fetchtag(int(tag))
-				if tagobj and tagobj['guild_id'] == await self.fetchguildid(interaction):
-					tag = int(tag)
-				else:
-					return await interaction.followup.send("Please select an available tag.")
-			else:
+			tag = await self.validtag(tag, lambda x: x['guild_id'] == await self.fetchguildid(interaction))
+			if tag is None:
 				return await interaction.followup.send("Please select an available tag.")
 
 
@@ -1897,11 +1912,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		else:
 			notag = "-1"
-			if tag:
-				if (not tag.isdigit() or not await self.fetchtag(int(tag))) and not tag == notag:
+			# if tag:
+			# 	if (not tag.isdigit() or not await self.fetchtag(int(tag))) and not tag == notag:
+			# 		return await interaction.followup.send("Please select an available tag.")
+			# 	else:
+			# 		tag = int(tag)
+			if tag and tag != notag:
+				tag = await self.validtag(tag)
+				if tag is None:
 					return await interaction.followup.send("Please select an available tag.")
-				else:
-					tag = int(tag)
 
 			queries = []
 			values = []
@@ -2366,11 +2385,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 		await interaction.response.defer()
 
 		if tag:
-			if tag.isdigit():
-				tag = await self.fetchtag(int(tag))
-				if not tag:
-					return await interaction.followup.send("Please select an available tag.")
-			else:
+			tag = await self.validtag(tag)
+			if tag is None:
 				return await interaction.followup.send("Please select an available tag.")
 
 		roles = tag['end_message_role_ids']
@@ -2391,8 +2407,27 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	@pollsadmintagpingrole.autocomplete("tag")
 	async def pollsadmintagpingrole_autocomplete_tag(self, interaction: discord.Interaction, current: str):
-		return await self.autocomplete_tag(interaction, current)
+		return await self.autocomplete_tag(interaction, current, local = False)
 
+
+	@pollsadmincrosspostgroup.command(name="add")
+	@owner_only()
+	async def pollsadmincrosspostadd(self, interaction, tag: str, channel: discord.TextChannel):
+		"""Adds a crosspost channel to a tag."""
+
+		await interaction.response.defer()
+
+		if tag:
+			tag = await self.validtag(tag)
+			if tag is None:
+				return await interaction.followup.send("Please select an available tag.")
+
+		
+
+
+	@pollsadmincrosspostadd.autocomplete("tag")
+	async def pollsadmincrosspostadd_autocomplete_tag(self, interaction: discord.Interaction, current: str):
+		return await self.autocomplete_tag(interaction, current, local = False)
 
 
 
