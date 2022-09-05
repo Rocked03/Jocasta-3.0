@@ -1363,7 +1363,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 				break
 
 		if tag:
-			tag = await self.validtag(tag, lambda x: x['guild_id'] == await self.fetchguildid(interaction))
+			guild_id = await self.fetchguildid(interaction)
+			tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
 			if tag is None:
 				return await interaction.followup.send("Please select an available tag.")
 
@@ -1554,7 +1555,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 		# 	else:
 		# 		return await interaction.followup.send("Please select an available tag.")
 		if tag:
-			tag = await self.validtag(tag, lambda x: x['guild_id'] == await self.fetchguildid(interaction))
+			guild_id = await self.fetchguildid(interaction)
+			tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
 			if tag is None:
 				return await interaction.followup.send("Please select an available tag.")
 
