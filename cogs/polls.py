@@ -1638,6 +1638,16 @@ class PollsCog(commands.Cog, name = "Polls"):
 			return await interaction.followup.send(f"Couldn't find a poll with the ID `{poll_id}`.")
 		oldpoll = poll
 
+		if poll['published'] and tag:
+			return await interaction.followup.send("You can't edit tags once the poll's been published!")
+
+		if tag:
+			guild_id = await self.fetchguildid(interaction)
+			tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
+			if tag is None:
+				return await interaction.followup.send("Please select an available tag.")
+			else: tag = tag['id']
+
 
 		if all(i is None for i in [question, description, thread_question, image, opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_7, opt_8]):
 
@@ -1779,27 +1789,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 			if len(choices) < 2:
 				return await interaction.followup.send("You need at least 2 choices!")
-
-
-			if poll['published'] and tag:
-				return await interaction.followup.send("You can't edit tags once the poll's been published!")
-
-			# if tag:
-			# 	if tag.isdigit():
-			# 		tagobj = await self.fetchtag(int(tag))
-			# 		if tagobj and tagobj['guild_id'] == await self.fetchguildid(interaction):
-			# 			tag = int(tag)
-			# 		else:
-			# 			return await interaction.followup.send("Please select an available tag.")
-			# 	else:
-			# 		return await interaction.followup.send("Please select an available tag.")
-			if tag:
-				guild_id = await self.fetchguildid(interaction)
-				tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
-				if tag is None:
-					return await interaction.followup.send("Please select an available tag.")
-				else: tag = tag['id']
-
 
 
 			async def update(name, *values):
