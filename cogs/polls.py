@@ -1321,8 +1321,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	class EditModal(discord.ui.Modal):
-		def __init__(self, poll, *, texts):
-			super().__init__(title = f"Edit Poll ({poll['id']})")
+		def __init__(self, *, title, texts):
+			super().__init__(title = title)
 
 			self.texts = texts
 			self.values = {}
@@ -1340,16 +1340,24 @@ class PollsCog(commands.Cog, name = "Polls"):
 				traceback.print_tb(error.__traceback__)
 
 	class EditView(discord.ui.View):
-		def __init__(self, *, poll, items, modal, groups):
+		def __init__(self, *, items, modal, groups, title):
 			super().__init__()
-			self.poll = poll
 			self.items = items
 			self.modal = modal
 			self.msg = None
 			self.groups = groups
+			self.title = title
 
 			self.interaction = None
 			self.status = False
+
+			self.checks = []
+			self.incomplete = {}
+
+			self.add_check(
+				lambda x: not any(i.required and not i.value for i in x.values()),
+				"You have not completed all required fields"
+			)
 
 			for k, v in groups.items():
 				self.add_item(self.EditButton(
@@ -1357,12 +1365,12 @@ class PollsCog(commands.Cog, name = "Polls"):
 					row=0
 					))
 
-			self.confirms = [
-				self.add_item(self.ConfirmButton(confirm=True, label="Confirm", row=1, style=discord.ButtonStyle.green)),
-				self.add_item(self.ConfirmButton(confirm=False, label="Cancel", row=1, style=discord.ButtonStyle.red))
-				]
+			
+			self.add_item(self.ConfirmButton(confirm=True, label="Confirm", style=discord.ButtonStyle.green)),
+			self.add_item(self.ConfirmButton(confirm=False, label="Cancel", style=discord.ButtonStyle.red))
 
-			self.incomplete = None
+			self.check_confirm()
+
 
 		class EditButton(discord.ui.Button):
 			def __init__(self, *, select, **kwargs):
@@ -1370,17 +1378,18 @@ class PollsCog(commands.Cog, name = "Polls"):
 				self.select = select
 
 			async def callback(self, interaction: discord.Interaction):
-				modal = self.view.modal(self.view.poll, texts={i: self.view.items[i].text_input() for i in self.select})
+				modal = self.view.modal(title = self.view.title, texts={i: self.view.items[i].text_input() for i in self.select})
 				await interaction.response.send_modal(modal)
 				await modal.wait()
 				for k, v in modal.values.items():
 					self.view.items[k].value = v if v else None
 				await self.view.update_message(self.view)
-				await self.view.check_confirm()
+				self.view.check_confirm()
+				await self.view.update_view()
 
 		class ConfirmButton(discord.ui.Button):
 			def __init__(self, *, confirm, **kwargs):
-				super().__init__(**kwargs)
+				super().__init__(**kwargs, custom_id=f'c-{confirm}')
 				self.value = confirm
 
 			async def callback(self, interaction: discord.Interaction):
@@ -1392,11 +1401,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 					child.disabled = True
 
 		class IncompleteButton(discord.ui.Button):
-			def __init__(self):
-				super().__init__(
-					disabled = True,
-					label = "You have not completed all required fields."
-					)
+			def __init__(self, label):
+				super().__init__(disabled = True, label = label)
 
 		async def update_message(self):
 			raise NotImplementedError()
@@ -1404,19 +1410,23 @@ class PollsCog(commands.Cog, name = "Polls"):
 		async def update_view(self):
 			await self.msg.edit(view=self)
 
-		def is_complete(self, items):
-			return not any(i.required and not i.value for i in items.values())
+		def check_confirm(self):
+			complete = True
+			for check, error in self.checks:
+				incomplete = not check(self.items)
+				complete = complete and not incomplete
+				if incomplete and error not in self.incomplete:
+					self.incomplete[error] = next(i for i in self.add_item(self.IncompleteButton(error)).children if i.label == error)
+				elif not incomplete and error in self.incomplete:
+					self.remove_item(self.incomplete[error])
+					self.incomplete.pop(error)
 
-		async def check_confirm(self):
-			incomplete = not self.is_complete(self.items)
-			for i in self.confirms:
-				i.disabled = incomplete
-			if incomplete and self.incomplete is None:
-				self.incomplete = self.add_item(IncompleteButton())
-			elif not incomplete and self.incomplete is not None:
-				self.remove_item(self.incomplete)
-				self.incomplete = None
-			await self.update_view()
+			for child in [c for c in self.children if c.custom_id.split('-')[0] == 'c']:
+				child.disabled = not complete
+
+		def add_check(self, check, error):
+			"""check() returns True if input is valid""" 
+			self.checks.append([check, error])
 
 	class EditItem():
 		def __init__(self, *, name, value = None, placeholder = None, max_length = None, required = True, style = discord.TextStyle.short):
@@ -1629,7 +1639,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		oldpoll = poll
 
 
-		if all(i is None for i in [question, description, thread_question, image, tag, opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_7, opt_8, show_question, show_options, show_voting]):
+		if all(i is None for i in [question, description, thread_question, image, opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_7, opt_8]):
 
 			groups = {
 				'Edit info': ['question', 'description', 'thread_question', 'image'],
@@ -1641,6 +1651,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				name = f"Option #{n}",
 				placeholder = f'Type option #{n} here...',
 				value = poll['choices'][n - 1] if n <= len(poll['choices']) else None,
+				style = discord.TextStyle.long,
 				required = req,
 				max_length = self.maxqlength
 				)
@@ -1651,6 +1662,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 					name = 'Question',
 					placeholder = 'Type your question here...',
 					value = poll['question'],
+					style = discord.TextStyle.long,
 					max_length = self.maxqlength
 				),
 
@@ -1680,11 +1692,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 				),
 			} | {f'opt_{n}': opt(n, n in [1, 2]) for n in range(1, 8 + 1)}
 
-			view = self.EditView(poll=poll, items=items, modal=self.EditModal, groups=groups)
-
+			view = self.EditView(
+				items = items,
+				modal = self.EditModal,
+				groups = groups,
+				title = f"Edit Poll ({poll['id']})"
+			)
 
 			def editembed(groups, items):
-				embed = discord.Embed(title = f"Editing Poll {poll['id']}", description = "Tag, Show Question, Show Options, and Show Voting are not able to be set via this menu.")
+				embed = discord.Embed(title = f"Editing Poll {poll['id']}", description = "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters.")
 
 				for k, v in groups.items():
 					embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value}" for i in v))
@@ -1702,8 +1718,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 				await self.msg.edit(embed=embed)
 
 			view.update_message = update_message
-			
-			
+
+
 			msg = await interaction.followup.send(embed=editembed(groups, items), view=view)
 			view.msg = msg
 
@@ -1723,6 +1739,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 				x = final.pop(f'opt_{n}')
 				if x is not None:
 					final['choices'].append(x)
+
+			for k, v in {'tag': tag, 'show_question': show_question, 'show_options': show_options, 'show_voting': show_voting}.items():
+				if v is not None:
+					final[k] = v
 
 			txt = [f"{k} = ${i}" for k, i in zip(final.keys(), list(range(2, len(final) + 2)))]
 
@@ -2596,6 +2616,158 @@ class PollsCog(commands.Cog, name = "Polls"):
 			await msg.edit(content = "Cancelled.", view = view)
 
 
+	@pollsadmintaggroup.command(name="edit")
+	@app_commands.describe(
+		do_ping = "Ping the role after each poll.",
+		do_role_assign = "Let users self-assign the ping role with a button.",
+		recycle_end_message = "Delete old end-messages when new end-message is sent."
+		)
+	@owner_only()
+	async def pollsadmintagedit(self, interaction: discord.Interaction,
+		tag: str,
+		do_ping: bool = None,
+		do_role_assign: bool = None,
+		recycle_end_message: bool = None,
+		):
+		"""Edits a tag."""
+
+		await interaction.response.defer()
+
+		tag = await self.validtag(tag)
+		if tag is None:
+			return await interaction.followup.send("Please select an available tag.")
+
+		groups = {'Edit tag': ['name', 'end_message', 'colour', 'num']}
+
+		items = {
+			'name': self.EditItem(
+				name = 'Tag Name',
+				placeholder = 'Type your tag name here...',
+				value = tag['name'],
+				max_length = 100
+			),
+
+			'end_message': self.EditItem(
+				name = 'End Message',
+				placeholder = 'Type your end message here... empty to ignore',
+				value = tag['end_message'],
+				style = discord.TextStyle.long,
+				max_length = 500,
+				required = False
+			),
+
+			'colour': self.EditItem(
+				name = 'Colour Hex Code',
+				placeholder = 'Paste your colour hex code here... e.g. 7289da',
+				value = hex(tag['colour']).strip('0x').upper(),
+				max_length = 6,
+				required = False
+			),
+
+			'num': self.EditItem(
+				name = 'Next Poll Number',
+				placeholder = 'Type your poll number here... empty to ignore',
+				value = tag['num'],
+				required = False
+			),
+		}
+
+		view = self.EditView(
+			items = items,
+			modal = self.EditModal,
+			groups = groups,
+			title = f"Edit Tag ({tag['id']})"
+		)
+
+		def editembed(groups, items):
+			embed = discord.Embed(title = f"Editing Tag {tag['id']}", description = "`Do Ping`, `Do Role Assign`, and `Recycle End Message` can only be set via the slash command parameters.")
+
+			for k, v in groups.items():
+				embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value}" for i in v))
+
+			return embed
+
+		async def update_message(self):
+			embed = editembed(self.groups, self.items)
+			await self.msg.edit(embed=embed)
+
+		view.update_message = update_message
+
+		view.add_check(lambda x: x['num'].value is None or (x['num'].value.isdigit() and int(x['num'].value) >= 0), "Next Poll Number must be a positive integer")
+
+		def colour_check(x):
+			colour = x['colour'].value
+			if colour is None: return True
+			try:
+				colour = colour.strip("#")
+				colour = int(colour, 16)
+				if not (0 <= colour <= 16777215):
+					raise ValueError
+			except ValueError:
+				return False
+			else:
+				return True
+		view.add_check(colour_check, "Colour must be a valid Hex Code between 000000 and FFFFFF")
+
+
+
+		msg = await interaction.followup.send(embed=editembed(groups, items), view=view)
+		view.msg = msg
+
+		await view.wait()
+		await msg.edit(view=view)
+
+
+		interaction = view.interaction
+		await interaction.response.defer()
+
+		if not view.status:
+			return await msg.edit(content = "Cancelled.")
+
+		view.items['colour'].value = int(view.items['colour'].value, 16) if view.items['colour'].value else None
+		view.items['num'].value = int(view.items['num'].value) if view.items['num'].value else None
+		final = {k: v.value for k, v in view.items.items()}
+
+		for k, v in {'do_ping': do_ping, 'do_role_assign': do_role_assign, 'recycle_end_message': recycle_end_message}.items():
+			if v is not None:
+				final[k] = v
+
+		txt = [f"{k} = ${i}" for k, i in zip(final.keys(), list(range(2, len(final) + 2)))]
+
+		await self.bot.db.execute(f"UPDATE pollstags SET {', '.join(txt)} WHERE id = $1", tag['id'], *final.values())
+
+		oldtag = tag
+		newtag = await self.fetchtag(tag['id'])
+
+		embed = lambda x: discord.Embed(
+			title = x['name'],
+			description = '\n'.join([
+				f"Counting from **{x['num']}**" if x['num'] else f"Not counting polls.",
+				f"Colour: #{hex(x['colour']).strip('0x').upper()}" if x['colour'] else f"No colour.",
+				f"End-message:\n> {x['end_message']}" if x['end_message'] else f"No end-message.",
+				"",
+				f"Recycle end-message: {x['end_message_replace']}",
+				f"Pinging role: {x['end_message_ping']}",
+				f"Self-assigning role: {x['end_message_self_assign']}",
+				]),
+			timestamp = discord.utils.utcnow(),
+			colour = x['colour'] if x['colour'] else None
+			)
+
+		oldembed = embed(oldtag)
+		newembed = embed(newtag)
+
+		oldembed.title = f"[OLD] {oldembed.title}"
+		newembed.title = f"[NEW] {newembed.title}"
+
+		await interaction.followup.send(f"Edited tag `{tag['id']}`", embeds = [oldembed, newembed])
+
+
+
+	@pollsadmintagedit.autocomplete("tag")
+	async def pollsadmintagedit_autocomplete_tag(self, interaction: discord.Interaction, current: str):
+		return await self.autocomplete_tag(interaction, current, local = False)
+
 
 	@pollsadmintaggroup.command(name="pingrole")
 	@owner_only()
@@ -2607,10 +2779,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		await interaction.response.defer()
 
-		if tag:
-			tag = await self.validtag(tag)
-			if tag is None:
-				return await interaction.followup.send("Please select an available tag.")
+		tag = await self.validtag(tag)
+		if tag is None:
+			return await interaction.followup.send("Please select an available tag.")
 
 		roles = tag['end_message_role_ids']
 
@@ -2643,10 +2814,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		await interaction.response.defer()
 
-		if tag:
-			tag = await self.validtag(tag)
-			if tag is None:
-				return await interaction.followup.send("Please select an available tag.")
+		tag = await self.validtag(tag)
+		if tag is None:
+			return await interaction.followup.send("Please select an available tag.")
 
 		if channel.id == tag['channel_id']:
 			return await interaction.followup.send(f"{channel.mention} is already the host channel!")
@@ -2679,10 +2849,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		await interaction.response.defer()
 
-		if tag:
-			tag = await self.validtag(tag)
-			if tag is None:
-				return await interaction.followup.send("Please select an available tag.")
+		tag = await self.validtag(tag)
+		if tag is None:
+			return await interaction.followup.send("Please select an available tag.")
 
 		if channel.id == tag['channel_id']:
 			return await interaction.followup.send(f"{channel.mention} is the host channel!")
