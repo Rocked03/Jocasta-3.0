@@ -1320,6 +1320,122 @@ class PollsCog(commands.Cog, name = "Polls"):
 			self.bot.add_view(view)
 
 
+	class EditModal(discord.ui.Modal):
+		def __init__(self, poll, *, texts):
+			super().__init__(title = f"Edit Poll ({poll['id']})")
+
+			self.texts = texts
+			self.values = {}
+
+			for k, v in self.texts.items():
+				self.add_item(v)
+		
+		async def on_submit(self, interaction: discord.Interaction):
+			self.values = {k: str(v) for k, v in self.texts.items()}
+			await interaction.response.defer()
+			self.interaction = interaction
+
+		async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+				await interaction.response.send_message('Something broke!', ephemeral=True)
+				traceback.print_tb(error.__traceback__)
+
+	class EditView(discord.ui.View):
+		def __init__(self, *, poll, items, modal, groups):
+			super().__init__()
+			self.poll = poll
+			self.items = items
+			self.modal = modal
+			self.msg = None
+			self.groups = groups
+
+			self.interaction = None
+			self.status = False
+
+			for k, v in groups.items():
+				self.add_item(self.EditButton(
+					select=v, label=k,
+					row=0
+					))
+
+			self.confirms = [
+				self.add_item(self.ConfirmButton(confirm=True, label="Confirm", row=1, style=discord.ButtonStyle.green)),
+				self.add_item(self.ConfirmButton(confirm=False, label="Cancel", row=1, style=discord.ButtonStyle.red))
+				]
+
+			self.incomplete = None
+
+		class EditButton(discord.ui.Button):
+			def __init__(self, *, select, **kwargs):
+				super().__init__(**kwargs)
+				self.select = select
+
+			async def callback(self, interaction: discord.Interaction):
+				modal = self.view.modal(self.view.poll, texts={i: self.view.items[i].text_input() for i in self.select})
+				await interaction.response.send_modal(modal)
+				await modal.wait()
+				for k, v in modal.values.items():
+					self.view.items[k].value = v if v else None
+				await self.view.update_message(self.view)
+				await self.view.check_confirm()
+
+		class ConfirmButton(discord.ui.Button):
+			def __init__(self, *, confirm, **kwargs):
+				super().__init__(**kwargs)
+				self.value = confirm
+
+			async def callback(self, interaction: discord.Interaction):
+				self.view.status = self.value
+				self.view.interaction = interaction
+				self.view.stop()
+
+				for child in self.view.children:
+					child.disabled = True
+
+		class IncompleteButton(discord.ui.Button):
+			def __init__(self):
+				super().__init__(
+					disabled = True,
+					label = "You have not completed all required fields."
+					)
+
+		async def update_message(self):
+			raise NotImplementedError()
+
+		async def update_view(self):
+			await self.msg.edit(view=self)
+
+		def is_complete(self, items):
+			return not any(i.required and not i.value for i in items.values())
+
+		async def check_confirm(self):
+			incomplete = not self.is_complete(self.items)
+			for i in self.confirms:
+				i.disabled = incomplete
+			if incomplete and self.incomplete is None:
+				self.incomplete = self.add_item(IncompleteButton())
+			elif not incomplete and self.incomplete is not None:
+				self.remove_item(self.incomplete)
+				self.incomplete = None
+			await self.update_view()
+
+	class EditItem():
+		def __init__(self, *, name, value = None, placeholder = None, max_length = None, required = True, style = discord.TextStyle.short):
+			self.name = name
+			self.value = value
+			self.placeholder = placeholder
+			self.max_length = max_length
+			self.required = required
+			self.style = style
+
+		def text_input(self):
+			return discord.ui.TextInput(
+				label = self.name,
+				placeholder = self.placeholder,
+				default = self.value,
+				style = self.style,
+				required = self.required,
+				max_length = self.max_length
+			)
 
 
 
@@ -1505,14 +1621,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		await interaction.response.defer()
 
-		clearvalue = "-clear"
-
-		if image and image.content_type.split('/')[0] == 'image':
-			image = image.url
-
-		if question and len(question) > self.maxqlength:
-			return await interaction.followup.send_message(f"Question is too long! Must be less than {self.maxqlength} characters.")
-
 		poll = await self.fetchpoll(poll_id)
 
 		if not poll or not await self.hasmanagerpermsbyuserandids(interaction.user, poll['guild_id'], interaction.channel_id):
@@ -1520,89 +1628,198 @@ class PollsCog(commands.Cog, name = "Polls"):
 		oldpoll = poll
 
 
-		choices = []
-		choicesmod = [opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_7, opt_8]
+		if all(i is None for i in [question, description, thread_question, image, tag, opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_7, opt_8, show_question, show_options, show_voting]):
+
+			groups = {
+				'Edit info': ['question', 'description', 'thread_question', 'image'],
+				'Edit options (1-4)': [f'opt_{i}' for i in range(1, 4 + 1)],
+				'Edit options (5-8)': [f'opt_{i}' for i in range(5, 8 + 1)]
+			}
+
+			opt = lambda n, req: self.EditItem(
+				name = f"Option #{n}",
+				placeholder = f'Type option #{n} here...',
+				value = poll['choices'][n - 1] if n <= len(poll['choices']) else None,
+				required = req,
+				max_length = self.maxqlength
+				)
+
+			defaultlength = 500
+			items = {
+				'question': self.EditItem(
+					name = 'Question',
+					placeholder = 'Type your question here...',
+					value = poll['question'],
+					max_length = self.maxqlength
+				),
+
+				'description': self.EditItem(
+					name = 'Description',
+					placeholder = 'Type your description here...',
+					value = poll['description'],
+					style = discord.TextStyle.long,
+					required = False,
+					max_length = defaultlength
+				),
+
+				'thread_question': self.EditItem(
+					name = 'Thread Question',
+					placeholder = 'Type your thread question here...',
+					value = poll['thread_question'],
+					style = discord.TextStyle.long,
+					required = False,
+					max_length = defaultlength
+				),
+
+				'image': self.EditItem(
+					name = 'Image URL',
+					placeholder = 'Paste your image URL here...',
+					value = poll['image'],
+					required = False
+				),
+			} | {f'opt_{n}': opt(n, n in [1, 2]) for n in range(1, 8 + 1)}
+
+			view = self.EditView(poll=poll, items=items, modal=self.EditModal, groups=groups)
 
 
-		for i in range(len(choicesmod)):
-			if i < len(poll['choices']):
-				old = poll['choices'][i]
-			else:
-				old = None
-			mod = choicesmod[i]
-			if mod == None: choices.append(old)
-			elif mod == clearvalue: choices.append(None)
-			else: choices.append(mod)
-		choices = [i for i in choices if i is not None]
+			def editembed(groups, items):
+				embed = discord.Embed(title = f"Editing Poll {poll['id']}", description = "Tag, Show Question, Show Options, and Show Voting are not able to be set via this menu.")
+
+				for k, v in groups.items():
+					embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value}" for i in v))
+
+				if 'image' in items.keys():
+					try:
+						embed.set_image(url = items['image'].value)
+					except HTTPException:
+						embed.add_field(name = "Invalid Image URL", value = "Image could not be loaded. Check to make sure you've pasted it correctly!")
+
+				return embed
+
+			async def update_message(self):
+				embed = editembed(self.groups, self.items)
+				await self.msg.edit(embed=embed)
+
+			view.update_message = update_message
+			
+			
+			msg = await interaction.followup.send(embed=editembed(groups, items), view=view)
+			view.msg = msg
+
+			await view.wait()
+			await msg.edit(view=view)
 
 
-		if poll['published'] and len(choices) != len(poll['choices']):
-			return await interaction.followup.send("You can't add/remove choices once the poll's been published!")
+			interaction = view.interaction
+			await interaction.response.defer()
 
-		if len(choices) < 2:
-			return await interaction.followup.send("You need at least 2 choices!")
+			if not view.status:
+				return await msg.edit(content = "Cancelled.")
 
+			final = {k: v.value for k, v in view.items.items()}
+			final['choices'] = []
+			for n in range(1, 8 + 1):
+				x = final.pop(f'opt_{n}')
+				if x is not None:
+					final['choices'].append(x)
 
-		if poll['published'] and tag:
-			return await interaction.followup.send("You can't edit tags once the poll's been published!")
+			txt = [f"{k} = ${i}" for k, i in zip(final.keys(), list(range(2, len(final) + 2)))]
 
-		# if tag:
-		# 	if tag.isdigit():
-		# 		tagobj = await self.fetchtag(int(tag))
-		# 		if tagobj and tagobj['guild_id'] == await self.fetchguildid(interaction):
-		# 			tag = int(tag)
-		# 		else:
-		# 			return await interaction.followup.send("Please select an available tag.")
-		# 	else:
-		# 		return await interaction.followup.send("Please select an available tag.")
-		if tag:
-			guild_id = await self.fetchguildid(interaction)
-			tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
-			if tag is None:
-				return await interaction.followup.send("Please select an available tag.")
-			else: tag = tag['id']
+			await self.bot.db.execute(f"UPDATE polls SET {', '.join(txt)} WHERE id = $1", poll_id, *final.values())
 
 
+		else:
+			clearvalue = "-clear"
 
-		async def update(name, *values):
-			if not isinstance(name, list):
-				name = [name]
-			if len(name) != len(values):
-				raise Exception
+			if image and image.content_type.split('/')[0] == 'image':
+				image = image.url
 
-			txt = [f"{k} = ${i}" for k, i in zip(name, list(range(1, len(values) + 1)))]
+			if question and len(question) > self.maxqlength:
+				return await interaction.followup.send_message(f"Question is too long! Must be less than {self.maxqlength} characters.")
 
-			await self.bot.db.execute(f"UPDATE polls SET {', '.join(txt)} WHERE id = ${len(values) + 1}", *values, poll_id)
-
-		clear = lambda x: None if x == clearvalue else x
+			choices = []
+			choicesmod = [opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_7, opt_8]
 
 
-		names = []
-		values = []
-		def append(name, value):
-			names.append(name)
-			values.append(value)
+			for i in range(len(choicesmod)):
+				if i < len(poll['choices']):
+					old = poll['choices'][i]
+				else:
+					old = None
+				mod = choicesmod[i]
+				if mod == None: choices.append(old)
+				elif mod == clearvalue: choices.append(None)
+				else: choices.append(mod)
+			choices = [i for i in choices if i is not None]
 
-		if question is not None:
-			append("question", question)
-		if choices is not None:
-			append("choices", choices)
-		if description is not None:
-			append("description", clear(description))
-		if thread_question is not None:
-			append("thread_question", clear(thread_question))
-		if image is not None:
-			append("image", clear(image))
-		if tag is not None:
-			append("tag", clear(tag))
-		if show_question is not None:
-			append("show_question", show_question)
-		if show_options is not None:
-			append("show_options", show_options)
-		if show_voting is not None:
-			append("show_voting", show_voting)
 
-		await update(names, *values)
+			if poll['published'] and len(choices) != len(poll['choices']):
+				return await interaction.followup.send("You can't add/remove choices once the poll's been published!")
+
+			if len(choices) < 2:
+				return await interaction.followup.send("You need at least 2 choices!")
+
+
+			if poll['published'] and tag:
+				return await interaction.followup.send("You can't edit tags once the poll's been published!")
+
+			# if tag:
+			# 	if tag.isdigit():
+			# 		tagobj = await self.fetchtag(int(tag))
+			# 		if tagobj and tagobj['guild_id'] == await self.fetchguildid(interaction):
+			# 			tag = int(tag)
+			# 		else:
+			# 			return await interaction.followup.send("Please select an available tag.")
+			# 	else:
+			# 		return await interaction.followup.send("Please select an available tag.")
+			if tag:
+				guild_id = await self.fetchguildid(interaction)
+				tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
+				if tag is None:
+					return await interaction.followup.send("Please select an available tag.")
+				else: tag = tag['id']
+
+
+
+			async def update(name, *values):
+				if not isinstance(name, list):
+					name = [name]
+				if len(name) != len(values):
+					raise Exception
+
+				txt = [f"{k} = ${i}" for k, i in zip(name, list(range(1, len(values) + 1)))]
+
+				await self.bot.db.execute(f"UPDATE polls SET {', '.join(txt)} WHERE id = ${len(values) + 1}", *values, poll_id)
+
+			clear = lambda x: None if x == clearvalue else x
+
+
+			names = []
+			values = []
+			def append(name, value):
+				names.append(name)
+				values.append(value)
+
+			if question is not None:
+				append("question", question)
+			if choices is not None:
+				append("choices", choices)
+			if description is not None:
+				append("description", clear(description))
+			if thread_question is not None:
+				append("thread_question", clear(thread_question))
+			if image is not None:
+				append("image", clear(image))
+			if tag is not None:
+				append("tag", clear(tag))
+			if show_question is not None:
+				append("show_question", show_question)
+			if show_options is not None:
+				append("show_options", show_options)
+			if show_voting is not None:
+				append("show_voting", show_voting)
+
+			await update(names, *values)
 
 
 
@@ -2416,6 +2633,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	@pollsadmincrosspostgroup.command(name="link")
+	@app_commands.describe(
+		tag="The tag to crosspost from.",
+		channel="The channel to crosspost to.")
 	@owner_only()
 	async def pollsadmincrosspostlink(self, interaction, tag: str, channel: discord.TextChannel):
 		"""Links a channel to crossposts from a tag."""
@@ -2449,6 +2669,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	@pollsadmincrosspostgroup.command(name="unlink")
+	@app_commands.describe(
+		tag="The tag to remove the crosspost from.",
+		channel="The channel to remove the crosspost from.")
 	@owner_only()
 	async def pollsadmincrosspostunlink(self, interaction, tag: str, channel: discord.TextChannel):
 		"""Unlinks a channel from crossposts from a tag."""
