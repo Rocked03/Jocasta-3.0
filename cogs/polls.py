@@ -1483,6 +1483,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
 			if tag is None:
 				return await interaction.followup.send("Please select an available tag.")
+			tag = tag['id']
 
 
 		# id (int), num (int), time (datetime), message_id (int), question (str), thread_question (str), choices (str[]), votes (int[]), image (str), published (bool), duration (datetime), guild_id (int), description (str), tag (int), show_question (bool), show_options (bool), show_voting (bool), active (bool), crosspost_message_ids (int[])
