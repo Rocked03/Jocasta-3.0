@@ -1447,6 +1447,20 @@ class PollsCog(commands.Cog, name = "Polls"):
 				max_length = self.max_length
 			)
 
+	def editmodalembed(self, groups, items, *, title, description):
+		embed = discord.Embed(title = title, description = description)
+
+		for k, v in groups.items():
+			embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value if not items[i].required or items[i].value is not None else '__**REQUIRED**__'}" for i in v))
+
+		if 'image' in items.keys() and items['image'].value:
+			if items['image'].value.lower().startswith('http'):
+				embed.set_image(url = items['image'].value)
+			else:
+				embed.add_field(name = "Invalid Image URL", value = "That doesn't look like a valid image URL! Make sure you've pasted the image URL correctly!")
+
+		return embed
+
 
 
 	@pollsgroup.command(name="create")
@@ -1462,8 +1476,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 		show_question = "Show question in poll message. Defaults to true.", show_options = "Show options in poll message. Defaults to true.", show_voting = "Show the current state of votes in poll message. Defaults to true."
 		)
 	async def pollcreate(self, interaction: discord.Interaction, 
-			question: str, 
-			opt_1: str, opt_2: str, 
+			question: str = None, 
+			opt_1: str = None, opt_2: str = None, 
 			description: str = None,
 			thread_question: str = None,
 			image: Attachment = None,
@@ -1472,21 +1486,13 @@ class PollsCog(commands.Cog, name = "Polls"):
 			show_question: bool = True, show_options: bool = True, show_voting: bool = True
 		):
 		"""Creates a poll question."""
-		
+
 		await interaction.response.defer()
 
 		choices = [i for i in [opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_7, opt_8] if i]
 
 		if image and image.content_type.split('/')[0] == 'image':
 			image = image.url
-
-		if len(question) > self.maxqlength:
-			return await interaction.followup.send_message(f"Question is too long! Must be less than {self.maxqlength} characters.")
-
-		while True:
-			poll_id = random.randint(10000, 99999)
-			if not await self.bot.db.fetchrow("SELECT id FROM polls WHERE id = $1", poll_id):
-				break
 
 		if tag:
 			guild_id = await self.fetchguildid(interaction)
@@ -1495,16 +1501,14 @@ class PollsCog(commands.Cog, name = "Polls"):
 				return await interaction.followup.send("Please select an available tag.")
 			tag = tag['id']
 
+		while True:
+			poll_id = random.randint(10000, 99999)
+			if not await self.bot.db.fetchrow("SELECT id FROM polls WHERE id = $1", poll_id):
+				break
 
 		# id (int), num (int), time (datetime), message_id (int), question (str), thread_question (str), choices (str[]), votes (int[]), image (str), published (bool), duration (datetime), guild_id (int), description (str), tag (int), show_question (bool), show_options (bool), show_voting (bool), active (bool), crosspost_message_ids (int[])
 
-		# await self.bot.db.execute(
-		# 	"INSERT INTO polls VALUES ($1, null, null, null, $2, $3, $4, null, $5, false, null, $6, $7, $8, $9, $10, $11, false, $12)", 
-		# 	poll_id, question, thread_question, choices, image, interaction.guild_id, description, tag, show_question, show_options, show_voting, []
-		# )
-
-
-		insert = {
+		poll = {
 			'id': poll_id,
 			'question': question,
 			'published': False,
@@ -1525,21 +1529,135 @@ class PollsCog(commands.Cog, name = "Polls"):
 			'show_options': show_options,
 			'show_voting': show_voting,
 		}
+
+
+		if question is None or len(choices) < 2:
+			groups = {
+				'Edit info': ['question', 'description', 'thread_question', 'image'],
+				'Edit options (1-4)': [f'opt_{i}' for i in range(1, 4 + 1)],
+				'Edit options (5-8)': [f'opt_{i}' for i in range(5, 8 + 1)]
+			}
+
+			opt = lambda n, req: self.EditItem(
+				name = f"Option #{n}",
+				placeholder = f'Type option #{n} here...',
+				value = poll['choices'][n - 1] if n <= len(poll['choices']) else None,
+				style = discord.TextStyle.long,
+				required = req,
+				max_length = self.maxqlength
+				)
+
+			defaultlength = 500
+			items = {
+				'question': self.EditItem(
+					name = 'Question',
+					placeholder = 'Type your question here...',
+					value = poll['question'],
+					style = discord.TextStyle.long,
+					max_length = self.maxqlength
+				),
+
+				'description': self.EditItem(
+					name = 'Description',
+					placeholder = 'Type your description here...',
+					value = poll['description'],
+					style = discord.TextStyle.long,
+					required = False,
+					max_length = defaultlength
+				),
+
+				'thread_question': self.EditItem(
+					name = 'Thread Question',
+					placeholder = 'Type your thread question here...',
+					value = poll['thread_question'],
+					style = discord.TextStyle.long,
+					required = False,
+					max_length = defaultlength
+				),
+
+				'image': self.EditItem(
+					name = 'Image URL',
+					placeholder = 'Paste your image URL here...',
+					value = poll['image'],
+					required = False
+				),
+			} | {f'opt_{n}': opt(n, n in [1, 2]) for n in range(1, 8 + 1)}
+
+			view = self.EditView(
+				items = items,
+				modal = self.EditModal,
+				groups = groups,
+				title = f"Create Poll"
+			)
+
+			def editembed(groups, items):
+				embed = discord.Embed(title = f"Creating Poll", description = "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters. These can also be edited later with `/polls edit`.")
+
+				for k, v in groups.items():
+					embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value if not items[i].required or items[i].value is not None else '__**REQUIRED**__'}" for i in v))
+
+				if 'image' in items.keys():
+					try:
+						embed.set_image(url = items['image'].value)
+					except HTTPException:
+						embed.add_field(name = "Invalid Image URL", value = "Image could not be loaded. Check to make sure you've pasted it correctly!")
+
+				return embed
+
+			embedtxt = {
+				'title': f"Creating Poll",
+				'description': "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters. These can also be edited later with `/polls edit`."
+			}
+
+			editmodalembed = self.editmodalembed
+			async def update_message(self):
+				embed = editmodalembed(self.groups, self.items, **embedtxt)
+				await self.msg.edit(embed=embed)
+
+			view.update_message = update_message
+
+
+			msg = await interaction.followup.send(embed=editmodalembed(groups, items, **embedtxt), view=view)
+			view.msg = msg
+
+			await view.wait()
+			await msg.edit(view=view)
+
+
+			interaction = view.interaction
+			await interaction.response.defer()
+
+			if not view.status:
+				return await msg.edit(content = "Cancelled.")
+
+			final = {k: v.value for k, v in view.items.items()}
+			final['choices'] = []
+			for n in range(1, 8 + 1):
+				x = final.pop(f'opt_{n}')
+				if x is not None:
+					final['choices'].append(x)
+
+			for k, v in final.items():
+				poll[k] = v
+
+			interaction = view.interaction
+
+		if len(poll['question']) > self.maxqlength:
+			return await interaction.followup.send_message(f"Question is too long! Must be less than {self.maxqlength} characters.")
+
 		await self.bot.db.execute(f'''
 				INSERT INTO polls
-					({", ".join(insert.keys())})
+					({", ".join(poll.keys())})
 				VALUES
-					({", ".join(f"${i}" for i in range(1, len(insert) + 1))})
+					({", ".join(f"${i}" for i in range(1, len(poll) + 1))})
 			''',
-			*insert.values()
+			*poll.values()
 		)
-
-
 
 		poll = await self.fetchpoll(poll_id)
 		embed = await self.pollinfoembed(poll)
 
-		await interaction.followup.send(f'Created new poll question: "{question}"', embed = embed)
+		await interaction.followup.send(f"Created new poll question: \"{poll['question']}\"", embed = embed)
 
 	@pollcreate.autocomplete("tag")
 	async def pollcreate_autocomplete_tag(self, interaction: discord.Interaction, current: str):
@@ -1713,7 +1831,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				embed = discord.Embed(title = f"Editing Poll {poll['id']}", description = "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters. Click confirm if you're only editing those parameters.")
 
 				for k, v in groups.items():
-					embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value}" for i in v))
+					embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value if not items[i].required or items[i].value is not None else '__**REQUIRED**__'}" for i in v))
 
 				if 'image' in items.keys():
 					try:
@@ -2672,7 +2790,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 			embed = discord.Embed(title = f"Editing Tag {tag['id']}", description = "`Do Ping`, `Do Role Assign`, and `Recycle End Message` can only be set via the slash command parameters. Click confirm if you're only editing those parameters.")
 
 			for k, v in groups.items():
-				embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value}" for i in v))
+				embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value if not items[i].required or items[i].value is not None else '__**REQUIRED**__'}" for i in v))
+
 
 			return embed
 
