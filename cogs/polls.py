@@ -1700,7 +1700,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			)
 
 			def editembed(groups, items):
-				embed = discord.Embed(title = f"Editing Poll {poll['id']}", description = "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters.")
+				embed = discord.Embed(title = f"Editing Poll {poll['id']}", description = "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters. Click confirm if you're only editing those parameters.")
 
 				for k, v in groups.items():
 					embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value}" for i in v))
@@ -2680,7 +2680,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		)
 
 		def editembed(groups, items):
-			embed = discord.Embed(title = f"Editing Tag {tag['id']}", description = "`Do Ping`, `Do Role Assign`, and `Recycle End Message` can only be set via the slash command parameters.")
+			embed = discord.Embed(title = f"Editing Tag {tag['id']}", description = "`Do Ping`, `Do Role Assign`, and `Recycle End Message` can only be set via the slash command parameters. Click confirm if you're only editing those parameters.")
 
 			for k, v in groups.items():
 				embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value}" for i in v))
@@ -2728,7 +2728,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		view.items['num'].value = int(view.items['num'].value) if view.items['num'].value else None
 		final = {k: v.value for k, v in view.items.items()}
 
-		for k, v in {'do_ping': do_ping, 'do_role_assign': do_role_assign, 'recycle_end_message': recycle_end_message}.items():
+		for k, v in {'end_message_ping': do_ping, 'end_message_self_assign': do_role_assign, 'end_message_replace': recycle_end_message}.items():
 			if v is not None:
 				final[k] = v
 
