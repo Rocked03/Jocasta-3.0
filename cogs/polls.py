@@ -53,10 +53,10 @@ x question values
 x show user history
   x show unvoted polls
 
-- tags
+x tags
   x create
-  - edit
-  - crosspost
+  x edit
+  x crosspost
 
 x end message repeat
 x end message ping
@@ -1590,20 +1590,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 				title = f"Create Poll"
 			)
 
-			def editembed(groups, items):
-				embed = discord.Embed(title = f"Creating Poll", description = "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters. These can also be edited later with `/polls edit`.")
-
-				for k, v in groups.items():
-					embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value if not items[i].required or items[i].value is not None else '__**REQUIRED**__'}" for i in v))
-
-				if 'image' in items.keys():
-					try:
-						embed.set_image(url = items['image'].value)
-					except HTTPException:
-						embed.add_field(name = "Invalid Image URL", value = "Image could not be loaded. Check to make sure you've pasted it correctly!")
-
-				return embed
-
 			embedtxt = {
 				'title': f"Creating Poll",
 				'description': "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters. These can also be edited later with `/polls edit`."
@@ -1827,28 +1813,20 @@ class PollsCog(commands.Cog, name = "Polls"):
 				title = f"Edit Poll ({poll['id']})"
 			)
 
-			def editembed(groups, items):
-				embed = discord.Embed(title = f"Editing Poll {poll['id']}", description = "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters. Click confirm if you're only editing those parameters.")
+			embedtxt = {
+				'title': f"Editing Poll {poll['id']}",
+				'description': "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters. Click confirm if you're only editing those parameters."
+			}
 
-				for k, v in groups.items():
-					embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value if not items[i].required or items[i].value is not None else '__**REQUIRED**__'}" for i in v))
-
-				if 'image' in items.keys():
-					try:
-						embed.set_image(url = items['image'].value)
-					except HTTPException:
-						embed.add_field(name = "Invalid Image URL", value = "Image could not be loaded. Check to make sure you've pasted it correctly!")
-
-				return embed
-
+			editmodalembed = self.editmodalembed
 			async def update_message(self):
-				embed = editembed(self.groups, self.items)
+				embed = editmodalembed(self.groups, self.items, **embedtxt)
 				await self.msg.edit(embed=embed)
 
 			view.update_message = update_message
 
 
-			msg = await interaction.followup.send(embed=editembed(groups, items), view=view)
+			msg = await interaction.followup.send(embed=editmodalembed(groups, items, **embedtxt), view=view)
 			view.msg = msg
 
 			await view.wait()
@@ -2786,17 +2764,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 			title = f"Edit Tag ({tag['id']})"
 		)
 
-		def editembed(groups, items):
-			embed = discord.Embed(title = f"Editing Tag {tag['id']}", description = "`Do Ping`, `Do Role Assign`, and `Recycle End Message` can only be set via the slash command parameters. Click confirm if you're only editing those parameters.")
+		embedtxt = {
+			'title': f"Editing Tag {tag['id']}",
+			'description': "`Do Ping`, `Do Role Assign`, and `Recycle End Message` can only be set via the slash command parameters. Click confirm if you're only editing those parameters."
+		}
 
-			for k, v in groups.items():
-				embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value if not items[i].required or items[i].value is not None else '__**REQUIRED**__'}" for i in v))
-
-
-			return embed
-
+		editmodalembed = self.editmodalembed
+		
 		async def update_message(self):
-			embed = editembed(self.groups, self.items)
+			embed = editmodalembed(self.groups, self.items, **embedtxt)
 			await self.msg.edit(embed=embed)
 
 		view.update_message = update_message
@@ -2819,7 +2795,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 
-		msg = await interaction.followup.send(embed=editembed(groups, items), view=view)
+		msg = await interaction.followup.send(embed=editmodalembed(groups, items, **embedtxt), view=view)
 		view.msg = msg
 
 		await view.wait()
