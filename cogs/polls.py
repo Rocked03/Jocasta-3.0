@@ -99,9 +99,6 @@ x on-startup views check for archived polls
 
 
 
-
-
-
 to test:
 x auto schedule start
 x auto schedule end
@@ -109,7 +106,7 @@ x schedule on schedule command
 x schedule on start command
 x schedule on end command
 x questions with same time diff tags processed separately
-- editing embed with hiding things
+x editing embed with hiding things
 
 '''
 
@@ -544,7 +541,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		if poll['image']: embed.set_image(url = poll['image'])
 
-		embed.set_footer(text = f"ID: {poll['id']}")
+		if tag:
+			embed.set_footer(text = f"{tag['name']} • ID: {poll['id']}")
+		else:
+			embed.set_footer(text = f"ID: {poll['id']}")
 
 		return embed
 
@@ -1815,7 +1815,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 			embedtxt = {
 				'title': f"Editing Poll {poll['id']}",
-				'description': "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters. Click confirm if you're only editing those parameters."
+				'description': "`Tag`, `Show Question`, `Show Options`, and `Show Voting` can only be set via the slash command parameters. Click Confirm if you're only editing those parameters."
 			}
 
 			editmodalembed = self.editmodalembed
@@ -2766,11 +2766,11 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		embedtxt = {
 			'title': f"Editing Tag {tag['id']}",
-			'description': "`Do Ping`, `Do Role Assign`, and `Recycle End Message` can only be set via the slash command parameters. Click confirm if you're only editing those parameters."
+			'description': "`Do Ping`, `Do Role Assign`, and `Recycle End Message` can only be set via the slash command parameters. Click Confirm if you're only editing those parameters."
 		}
 
 		editmodalembed = self.editmodalembed
-		
+
 		async def update_message(self):
 			embed = editmodalembed(self.groups, self.items, **embedtxt)
 			await self.msg.edit(embed=embed)
@@ -2791,7 +2791,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				return False
 			else:
 				return True
-		view.add_check(colour_check, "Colour must be a valid Hex Code between 000000 and FFFFFF")
+		view.add_check(colour_check, "Colour must be a valid hex code between 000000 and FFFFFF")
 
 
 
