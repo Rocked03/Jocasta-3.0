@@ -542,9 +542,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if poll['image']: embed.set_image(url = poll['image'])
 
 		if tag:
-			embed.set_footer(text = f"{tag['name']} • ID: {poll['id']}")
+			embed.set_footer(text = f"{tag['name']} • [{poll['id']}]")
 		else:
-			embed.set_footer(text = f"ID: {poll['id']}")
+			embed.set_footer(text = f"[{poll['id']}]")
 
 		return embed
 
