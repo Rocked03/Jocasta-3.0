@@ -176,6 +176,7 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 		try:
 			events = interaction.guild.scheduled_events
 			events = [i for i in events if i.status in [discord.EventStatus.scheduled, discord.EventStatus.active]]
+			events.sort(key = i.start_time.timestamp())
 		except HTTPException: return []
 
 		search = []
@@ -198,7 +199,7 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 		else:
 			search = [app_commands.Choice(name = event.name, value = str(event.id)) for event in events]
 
-		return search
+		return search[:25]
 
 		
 
