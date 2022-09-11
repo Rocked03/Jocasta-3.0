@@ -151,10 +151,8 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 		await interaction.response.defer()
 
 		try:
-			event = interaction.guild.get_scheduled_event(int(event))
-			if event is None:
-				raise ValueError
-		except ValueError:
+			event = await interaction.guild.fetch_scheduled_event(int(event))
+		except (ValueError, NotFound):
 			return await interaction.followup.send("Event could not be found in this server.")
 
 		start = int(event.start_time.timestamp())
@@ -175,9 +173,12 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 
 	@timestampevent.autocomplete("event")
 	async def timestampevent_autocomplete_event(self, interaction: discord.Interaction, current: str):
+		try:
+			events = interaction.guild.scheduled_events
+			events = [i for i in events if i.status in [discord.EventStatus.scheduled, discord.EventStatus.active]]
+		except HTTPException: return []
 
-		events = list(interaction.guild.scheduled_events)
-		if not events: return []
+		search = []
 
 		if current:
 			findid = re.split('=|/', current)[-1]
@@ -185,19 +186,19 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 				eventid = int(findid)
 				try:
 					event = next(i for i in events if i.id == eventid)
-					return [app_commands.Choice(name = event.name, value = str(event.id))]
+					search += [app_commands.Choice(name = event.name, value = str(event.id))]
 				except StopIteration:
-					pass
+					search += [app_commands.Choice(name = f"Event with ID: {eventid}", value = str(eventid))]
 
 			alnum = lambda x: re.sub(r'[\W_]+', '', x.lower()) if x else ''
 			lowered = alnum(current)
-			search = [i for i in events if any(
+			search += [app_commands.Choice(name = i.name, value = str(i.id)) for i in events if any(
 				lowered in alnum(getattr(i, j)) for j in ['name', 'description']
 			)]
 		else:
-			search = events
+			search = [app_commands.Choice(name = event.name, value = str(event.id)) for event in events]
 
-		return [app_commands.Choice(name = event.name, value = str(event.id)) for event in search]
+		return search
 
 		
 
