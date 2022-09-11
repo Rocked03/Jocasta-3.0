@@ -1,4 +1,4 @@
-import datetime, discord, math
+import datetime, discord, math, re
 from config import *
 from discord import *
 from discord.ext import commands
@@ -145,7 +145,9 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 
 
 	@timestampgroup.command(name="event")
+	@app_commands.describe(event = "Event to attain time.")
 	async def timestampevent(self, interaction: discord.Interaction, event: str):
+		"""Gives relational start time for events."""
 		await interaction.response.defer()
 
 		try:
@@ -155,9 +157,47 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 		except ValueError:
 			return await interaction.followup.send("Event could not be found in this server.")
 
-		await interaction.followup.send(event)
+		start = int(event.start_time.timestamp())
+		end = int(event.end_time.timestamp()) if event.end_time else None
 
+		embed = discord.Embed(
+			title = event.name,
+			description = "Starts at <t:{0}:F>, <t:{0}:R>".format(start)
+				+ ("\nEnds at <t:{0}:F>, <t:{0}:R>".format(end) if end else ""),
+			colour = 0x2f3136
+			)
 
+		embed.set_footer(
+			text = f"{start}" + (f" | {end}" if end else "")
+			)
+
+		await interaction.followup.send(event.url, embed=embed)
+
+	@timestampevent.autocomplete("event")
+	async def timestampevent_autocomplete_event(self, interaction: discord.Interaction, current: str):
+
+		events = list(interaction.guild.scheduled_events)
+		if not events: return []
+
+		if current:
+			findid = re.split('=|/', current)[-1]
+			if findid.isdigit():
+				eventid = int(findid)
+				try:
+					event = next(i for i in events if i.id == eventid)
+					return [app_commands.Choice(name = event.name, value = str(event.id))]
+				except StopIteration:
+					pass
+
+			alnum = lambda x: re.sub(r'[\W_]+', '', x.lower()) if x else ''
+			lowered = alnum(current)
+			search = [i for i in events if any(
+				lowered in alnum(getattr(i, j)) for j in ['name', 'description']
+			)]
+		else:
+			search = events
+
+		return [app_commands.Choice(name = event.name, value = str(event.id)) for event in search]
 
 		
 
