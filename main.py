@@ -12,6 +12,7 @@ class Jocasta(commands.Bot):
 			'funcs.postgresql',
 			'cogs.owner',
 			'cogs.polls',
+			'cogs.time'
 		]
 
 		for extension in initial_extensions:
