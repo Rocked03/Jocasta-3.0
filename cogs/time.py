@@ -176,7 +176,7 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 		try:
 			events = interaction.guild.scheduled_events
 			events = [i for i in events if i.status in [discord.EventStatus.scheduled, discord.EventStatus.active]]
-			events.sort(key = i.start_time.timestamp())
+			events.sort(key = lambda x: x.start_time.timestamp())
 		except HTTPException: return []
 
 		search = []
