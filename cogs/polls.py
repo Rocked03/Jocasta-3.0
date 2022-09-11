@@ -80,8 +80,6 @@ x new embed for pretty
 
 x fix search with better regex or smth
 
-- timestamp creator command
-
 x set up better config
 
 x me command single polls
@@ -132,7 +130,6 @@ def valid_guild_only():
 class PollsCog(commands.Cog, name = "Polls"):
 	"""Polls commands"""
 
-
 	def __init__(self, bot):
 		self.bot = bot
 
@@ -162,8 +159,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 		self.bot.loop.create_task(self.on_startup_scheduler())
-
-
 
 
 
@@ -197,7 +192,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 			if v:
 				txt.append(f"{v} {k}{self.s(v)}")
 		return ', '.join(txt)
-
 
 
 
@@ -1341,7 +1335,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	class EditView(discord.ui.View):
 		def __init__(self, *, items, modal, groups, title):
-			super().__init__()
+			super().__init__(timeout=None)
 			self.items = items
 			self.modal = modal
 			self.msg = None
@@ -1651,7 +1645,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 
-
 	@pollsgroup.command(name="delete")
 	@poll_manager_only()
 	@valid_guild_only()
@@ -1706,7 +1699,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 	@polldelete.autocomplete("poll_id")
 	async def polldelete_autocomplete_poll_id(self, interaction: discord.Interaction, current: int):
 		return await self.autocomplete_searchbypollid(interaction, current)
-
 
 
 
@@ -1961,7 +1953,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 
-
 	@pollsgroup.command(name="schedule")
 	@poll_manager_only()
 	@valid_guild_only()
@@ -2089,7 +2080,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 
-
 	@pollsgroup.command(name="start")
 	@poll_manager_only()
 	@valid_guild_only()
@@ -2153,7 +2143,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 
-
 	@pollsgroup.command(name="end")
 	@poll_manager_only()
 	@valid_guild_only()
@@ -2183,7 +2172,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 	@pollend.autocomplete("poll_id")
 	async def pollend_autocomplete_poll_id(self, interaction: discord.Interaction, current: int):
 		return await self.autocomplete_searchbypollid(interaction, current, active = True)
-
 
 
 
@@ -2478,7 +2466,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 
-
 	@pollsadmingroup.command(name="sync")
 	@app_commands.describe(all_messages = "Update all messages, including inactive polls.")
 	@owner_only()
@@ -2586,7 +2573,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 		print("~~~ End SYNC ~~~")
-
 
 
 
@@ -2699,6 +2685,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		else:
 			await msg.edit(content = "Cancelled.", view = view)
+
 
 
 	@pollsadmintaggroup.command(name="edit")
@@ -2846,11 +2833,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		await interaction.followup.send(f"Edited tag `{tag['id']}`", embeds = [oldembed, newembed])
 
-
-
 	@pollsadmintagedit.autocomplete("tag")
 	async def pollsadmintagedit_autocomplete_tag(self, interaction: discord.Interaction, current: str):
 		return await self.autocomplete_tag(interaction, current, local = False)
+
 
 
 	@pollsadmintaggroup.command(name="pingrole")
@@ -2882,10 +2868,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 			f"Successfully **{txt[0]}** {ping_role.mention} {txt[1]} the **{tag['name']}** ({tag['id']}) tag.",
 			allowed_mentions = discord.AllowedMentions.none())
 
-
 	@pollsadmintagpingrole.autocomplete("tag")
 	async def pollsadmintagpingrole_autocomplete_tag(self, interaction: discord.Interaction, current: str):
 		return await self.autocomplete_tag(interaction, current, local = False)
+
 
 
 	@pollsadmincrosspostgroup.command(name="link")
@@ -2921,6 +2907,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 	@pollsadmincrosspostlink.autocomplete("tag")
 	async def pollsadmincrosspostlink_autocomplete_tag(self, interaction: discord.Interaction, current: str):
 		return await self.autocomplete_tag(interaction, current, local = False)
+
 
 
 	@pollsadmincrosspostgroup.command(name="unlink")
