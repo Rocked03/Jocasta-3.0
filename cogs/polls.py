@@ -1415,7 +1415,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 					self.remove_item(self.incomplete[error])
 					self.incomplete.pop(error)
 
-			for child in [c for c in self.children if c.custom_id.split('-')[0] == 'c']:
+			# for child in [c for c in self.children if c.custom_id.split('-')[0] == 'c']:
+			for child in [c for c in self.children if c.custom_id == "c-True"]:
 				child.disabled = not complete
 
 		def add_check(self, check, error):
