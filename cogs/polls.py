@@ -1443,7 +1443,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			)
 
 	def editmodalembed(self, groups, items, *, title, description):
-		embed = discord.Embed(title = title, description = description)
+		embed = discord.Embed(title = title, description = description, colour = 0x2f3136)
 
 		for k, v in groups.items():
 			embed.add_field(name = k, value = "\n".join(f"**{items[i].name}**: {items[i].value if not items[i].required or items[i].value is not None else '__**REQUIRED**__'}" for i in v))

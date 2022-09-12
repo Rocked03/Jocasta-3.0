@@ -1,4 +1,4 @@
-import datetime, discord, math, re
+import calendar, datetime, discord, itertools, math, pytz, re
 from config import *
 from discord import *
 from discord.ext import commands
@@ -22,7 +22,7 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 
 
 	datetosql = lambda self, x: x.strftime('%Y-%m-%d %H:%M:%S')
-	strf = lambda self, x: x.strftime('%a, %b %d, %Y ~ %I:%M:%S %p %Z').replace(" 0", " ")
+	strf = lambda self, x: x.strftime('%a, %b %d, %Y ~ %I:%M:%S %p %Z%z').replace(" 0", " ")
 	# Sun, Mar 6, 2022 ~ 3:30 PM UTC
 	s = lambda self, x: "" if x == 1 else "s"
 
@@ -104,7 +104,8 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 	@app_commands.describe(
 		starting_timestamp = "Timestamp to build upon.",
 		interval = "The length of time between timestamps.",
-		amount = "The number of timestamps to generate (including starting timestamp)."
+		amount = "The number of timestamps to generate (including starting timestamp).",
+		raw = "Display raw timestamp values only."
 		)
 	async def timestamprepeat(self, interaction: discord.Interaction, starting_timestamp: int, interval: int, amount: int, raw: bool = False):
 		"""Lists following timestamps at constant intervals."""
@@ -142,6 +143,169 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 				[30, "minutes"]
 			])
 
+
+	@timestampgroup.command(name="generate")
+	@app_commands.describe(
+		time = "Written date and time to convert to timestamp.",
+		raw = "Display raw timestamp values only."
+		)
+	async def timestampgenerate(self, interaction: discord.Interaction, time: str, raw: bool = False):
+		"""Generates a timestamp from a written date and time."""
+		await interaction.response.defer()
+
+		timestamps = self.strtodatetime(time)
+
+		if not raw:
+			txt = ["<t:{0}:F> | `{0}`".format(int(i.timestamp())) for i in timestamps]
+			embed = discord.Embed(description = '\n'.join(txt), colour = 0x2f3136)
+			await interaction.followup.send(embed=embed)
+		else:
+			await interaction.followup.send('\n'.join(str(int(i.timestamp())) for i in timestamps))
+
+	def strtodatetime(self, time: str):
+		time = time.strip()
+
+		if time.isdigit():
+			try:
+				time = int(time)
+				return [datetime.datetime.fromtimestamp(time, datetime.timezone.utc)]
+			except (OSError, OverflowError):
+				return None
+
+		kwargs = {i: set() for i in ['year', 'month', 'day', 'hour', 'minute', 'second']}
+
+		segments = [i.strip(',') for i in time.split(" ")]
+
+		today = datetime.datetime.utcnow()
+
+		months = {index: [name.lower(), abbr.lower()] for index, (name, abbr) in enumerate(zip(calendar.month_name, calendar.month_abbr)) if name and abbr}
+
+		for i in segments:
+			j = i.strip("stndrh")
+			if j.isdigit():
+				i = int(j)
+				if i >= 1970:
+					kwargs['year'].add(i)
+				elif i >= 1:
+					kwargs['day'].add(i)
+			else:
+				kwargs['month'] |= {k for k, v in months.items() if i.lower() in v}
+
+		ampm = None
+		ampmkey = {True: ["a", "am"], False: ["p", "pm"]}
+		for i in segments:
+			try:
+				ampm = next(k for k, v in ampmkey.items() if any(i.endswith(j) for j in v))
+			except StopIteration:
+				pass
+
+		ignoreddates = []
+
+		for i in segments:
+			i = i.replace("-", "/")
+
+			if "/" in i:
+				dates = i.split("/")
+				if 2 <= len(dates) <= 3:
+					if len(dates) == 3:
+						for d in dates:
+							if d.isdigit() and int(d) > 30:
+								year = int(d)
+								if year < 100: year += 2000
+								if year < 1970: year = today.year
+								else: kwargs['year'].add(year)
+								dates.remove(d)
+					else: year = today.year
+
+					ignoreddates += [d for d in [[int(f)] * 2 for f in dates[:2] if f.isdigit()] if d not in ignoreddates]
+
+					for ddmm in [dates[:2], [dates[1], dates[0]]]:
+						try:
+							ddmm = [int(d) for d in ddmm]
+							datetime.datetime(year=year, month=ddmm[0], day=ddmm[1])
+						except ValueError:
+							continue
+						else:
+							kwargs['month'].add(ddmm[0])
+							kwargs['day'].add(ddmm[1])
+							if ddmm in ignoreddates:
+								ignoreddates.remove(ddmm)
+
+			if (":" in i) or any(any(i.endswith(j) for j in v) for v in ampmkey.values()):
+				times = i.strip('apm').split(":")
+				if 1 <= len(times) <= 3:
+					try:
+						times = [int(float(t)) for t in times]
+					except ValueError as e:
+						pass
+					else:
+						if 0 <= times[0] <= 23:
+							if ampm is True and times[0] >= 12:
+								kwargs['hour'].add(times[0] - 12)
+							elif (ampm is False or ampm is None) and times[0] < 12:
+								kwargs['hour'].add(times[0] + 12)
+							if (ampm is True and times[0] < 12) or (ampm is False and times[0] >= 12) or (ampm is None):
+								kwargs['hour'].add(times[0])
+
+						if len(times) >= 2 and 0 <= times[1] <= 59:
+							kwargs['minute'].add(times[1])
+
+						if len(times) >= 3 and 0 <= times[2] <= 59:
+							kwargs['second'].add(times[2])
+
+		hours = {"noon": 12, "midnight": 0, "morning": 8, "afternoon": 1, "evening": 9}
+		for i in segments:
+			if i.lower() in hours.keys():
+				kwargs['hour'].add(hours[i.lower()])
+
+
+		kwargs = {k: v if v else ({getattr(today, k)} if k in ['year', 'month', 'day'] else ({getattr(today, k)} if all(not kwargs[l] for l in ['hour', 'minute', 'day']) else {0})) for k, v in kwargs.items()}
+
+		times = []
+		timetz = []
+		for i in list(itertools.product(*list(kwargs.values()))):
+			values = {k: v for k, v in zip(kwargs.keys(), i)}
+			if [values['month'], values['day']] in ignoreddates: continue
+			try:
+				times.append(datetime.datetime(**values))
+			except ValueError:
+				continue
+
+		for t in times:
+			tz = segments[-1].lower()
+			if tz.startswith("gmt") and len(tz) > 3: tz = tz[3:]
+			if tz.startswith("+") and not len(tz) % 2: tz = '+0' + tz[1:]
+			timetz += self.tzsearch(tz, t)
+			if not timetz:
+				timetz += [pytz.utc.localize(t)]
+
+		return timetz
+
+	def tzsearch(self, abb, time = None):
+		abb = abb.lower()
+		dsts = [abb, abb.replace("st", "dt"), abb.replace("dt", "st")]
+		if abb.endswith('t'): dsts += [abb[:-1] + i for i in ['dt', 'st']]
+		if time is None: time = datetime.datetime.now()
+
+		tzs = [tz for tz in [pytz.timezone(i).localize(time) for i in pytz.all_timezones] if tz.tzname().lower() in dsts]
+
+		offset = lambda i: i.tzinfo.utcoffset(i)
+		dates = []
+		for tz in tzs:
+			if offset(tz) not in [offset(i) for i in dates]:
+				dates.append(tz)
+
+		return dates
+
+	@timestampgenerate.autocomplete("time")
+	async def timestampgenerate_autocomplete_time(self, interaction: discord.Interaction, current: str):
+		timestamp = self.strtodatetime(current)
+
+		choices = []
+		for t in timestamp:
+			choices.append(app_commands.Choice(name = self.strf(t), value = str(int(t.timestamp()))))
+
+		return choices
 
 
 	@timestampgroup.command(name="event")
