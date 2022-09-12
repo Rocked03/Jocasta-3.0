@@ -175,6 +175,7 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 	async def timestampevent_autocomplete_event(self, interaction: discord.Interaction, current: str):
 		try:
 			events = interaction.guild.scheduled_events
+			if not events: events = await interaction.guild.fetch_scheduled_events()
 			events = [i for i in events if i.status in [discord.EventStatus.scheduled, discord.EventStatus.active]]
 			events.sort(key = lambda x: x.start_time.timestamp())
 		except HTTPException: return []
