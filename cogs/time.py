@@ -6,12 +6,6 @@ from discord.app_commands import *
 from discord.app_commands.tree import _log
 
 
-"""
-- /timestamp generate <written time>
-x /timestamp repeat <timestamp>
-"""
-
-
 class TimeCog(discord.ext.commands.Cog, name = "Time"):
 	"""Time commands"""
 
@@ -41,6 +35,9 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 
 
 	async def on_app_command_error(self, interaction: Interaction, error: AppCommandError):
+		if isinstance(error, app_commands.errors.CheckFailure):
+			return await interaction.response.send_message(f"You can't use this command!", ephemeral = True)
+
 		await interaction.followup.send("Something broke!")
 		_log.error('Ignoring exception in command %r', interaction.command.name, exc_info=error)
 
@@ -339,7 +336,9 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 	async def timestampevent_autocomplete_event(self, interaction: discord.Interaction, current: str):
 		try:
 			events = interaction.guild.scheduled_events
-			if not events: events = await interaction.guild.fetch_scheduled_events()
+			if not events:
+				await interaction.response.defer()
+				events = await interaction.guild.fetch_scheduled_events()
 			events = [i for i in events if i.status in [discord.EventStatus.scheduled, discord.EventStatus.active]]
 			events.sort(key = lambda x: x.start_time.timestamp())
 		except HTTPException: return []
