@@ -47,7 +47,7 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 	timestampgroup = app_commands.Group(name="timestamp", description="Timestamp creation commands", guild_ids=guild_ids)
 
 
-	async def autocomplete_timestamp(self, interaction: discord.Interaction, current: int):
+	async def autocomplete_timestamp_old(self, interaction: discord.Interaction, current: int):
 		try:
 			current = int(current)
 		except ValueError:
@@ -58,6 +58,11 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 			return [app_commands.Choice(name = f"{self.strf(time)}", value = int(current))]
 		except (OSError, OverflowError):
 			return []
+
+	async def autocomplete_timestamp(self, interaction: discord.Interaction, current: int):
+		timestamp = self.strtodatetime(current)
+		choices = [app_commands.Choice(name = self.strf(t), value = int(t.timestamp())) for t in timestamp]
+		return choices[:25]
 
 	async def autocomplete_duration(self, interaction: discord.Interaction, current: int, *, defaults = []):
 		try:
@@ -196,7 +201,7 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 			except StopIteration:
 				pass
 
-		ignoreddates = []
+		ignoreddates = set()
 
 		for i in segments:
 			i = i.replace("-", "/")
@@ -205,16 +210,18 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 				dates = i.split("/")
 				if 2 <= len(dates) <= 3:
 					if len(dates) == 3:
-						for d in dates:
-							if d.isdigit() and int(d) > 30:
+						for n, d in enumerate(dates):
+							if d.isdigit() and (int(d) > 30 or n == 2):
 								year = int(d)
 								if year < 100: year += 2000
 								if year < 1970: year = today.year
 								else: kwargs['year'].add(year)
 								dates.remove(d)
+							else:
+								year = today.year
 					else: year = today.year
 
-					ignoreddates += [d for d in [[int(f)] * 2 for f in dates[:2] if f.isdigit()] if d not in ignoreddates]
+					ignoreddates.update([tuple([int(f)]) * 2 for f in dates[:2] if f.isdigit()])
 
 					for ddmm in [dates[:2], [dates[1], dates[0]]]:
 						try:
@@ -225,8 +232,8 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 						else:
 							kwargs['month'].add(ddmm[0])
 							kwargs['day'].add(ddmm[1])
-							if ddmm in ignoreddates:
-								ignoreddates.remove(ddmm)
+							if tuple(ddmm) in ignoreddates:
+								ignoreddates -= {tuple(ddmm)}
 
 			if (":" in i) or any(any(i.endswith(j) for j in v) for v in ampmkey.values()):
 				times = i.strip('apm').split(":")
@@ -262,46 +269,45 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 		timetz = []
 		for i in list(itertools.product(*list(kwargs.values()))):
 			values = {k: v for k, v in zip(kwargs.keys(), i)}
-			if [values['month'], values['day']] in ignoreddates: continue
+			if (values['month'], values['day']) in ignoreddates: continue
 			try:
 				times.append(datetime.datetime(**values))
 			except ValueError:
 				continue
 
+		def tzsearch(abb, time = None):
+			abb = abb.lower()
+			dsts = [abb, abb.replace("st", "dt"), abb.replace("dt", "st")]
+			if abb.endswith('t'): dsts += [abb[:-1] + i for i in ['dt', 'st']]
+			if time is None: time = datetime.datetime.now()
+
+			tzs = [tz for tz in [pytz.timezone(i).localize(time) for i in pytz.all_timezones] if tz.tzname().lower() in dsts]
+
+			offset = lambda i: i.tzinfo.utcoffset(i)
+			dates = []
+			for tz in tzs:
+				if offset(tz) not in [offset(i) for i in dates]:
+					dates.append(tz)
+
+			return dates
+
 		for t in times:
 			tz = segments[-1].lower()
 			if tz.startswith("gmt") and len(tz) > 3: tz = tz[3:]
 			if tz.startswith("+") and not len(tz) % 2: tz = '+0' + tz[1:]
-			timetz += self.tzsearch(tz, t)
+			timetz += tzsearch(tz, t)
 			if not timetz:
 				timetz += [pytz.utc.localize(t)]
 
 		return timetz
 
-	def tzsearch(self, abb, time = None):
-		abb = abb.lower()
-		dsts = [abb, abb.replace("st", "dt"), abb.replace("dt", "st")]
-		if abb.endswith('t'): dsts += [abb[:-1] + i for i in ['dt', 'st']]
-		if time is None: time = datetime.datetime.now()
-
-		tzs = [tz for tz in [pytz.timezone(i).localize(time) for i in pytz.all_timezones] if tz.tzname().lower() in dsts]
-
-		offset = lambda i: i.tzinfo.utcoffset(i)
-		dates = []
-		for tz in tzs:
-			if offset(tz) not in [offset(i) for i in dates]:
-				dates.append(tz)
-
-		return dates
+	
 
 	@timestampgenerate.autocomplete("time")
 	async def timestampgenerate_autocomplete_time(self, interaction: discord.Interaction, current: str):
-		timestamp = self.strtodatetime(current)
-
-		choices = []
-		for t in timestamp:
-			choices.append(app_commands.Choice(name = self.strf(t), value = str(int(t.timestamp()))))
-
+		choices = await self.autocomplete_timestamp(interaction, current)
+		for i in choices:
+			i.value = str(i.value)
 		return choices
 
 

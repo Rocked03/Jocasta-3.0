@@ -1,5 +1,6 @@
 import asyncio, asyncpg, copy, datetime, discord, enum, math, random, re, sys, traceback
 from config import *
+from cogs.time import TimeCog
 from discord import *
 from discord.ext import commands
 from discord.app_commands import *
@@ -75,7 +76,7 @@ x TOTAL VOTES
 x info embed when voting
 x better more informative info embed
 x ditto for schedule embed
-- format duration in info embed
+x format duration in info embed
 x new embed for pretty
 
 x fix search with better regex or smth
@@ -176,7 +177,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	datetosql = lambda self, x: x.strftime('%Y-%m-%d %H:%M:%S')
-	strf = lambda self, x: x.strftime('%a, %b %d, %Y ~ %I:%M:%S %p %Z').replace(" 0", " ")
+	strf = lambda self, x: x.strftime('%a, %b %d, %Y ~ %I:%M:%S %p %Z%z').replace(" 0", " ")
 	# Sun, Mar 6, 2022 ~ 3:30 PM UTC
 	s = lambda self, x: "" if x == 1 else "s"
 
@@ -414,7 +415,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if poll['thread_question']: embed.add_field(name = "Thread Question", value = poll['thread_question'])
 		if poll['tag']: embed.add_field(name = "Tag", value = f"`{tag['name']}`")
 
-		if poll['time']: embed.add_field(name = "Publish Date", value = f"<t:{int(poll['time'].timestamp())}:F>")
+		if poll['time']: embed.add_field(name = "Publish Date", value = f"<t:{int(poll['time'].timestamp())}:F> (`{int(poll['time'].timestamp())}`)")
 		if poll['duration']: embed.add_field(name = "Duration", value = self.strfduration(poll['duration']))
 
 		if poll['message_id']:
@@ -688,43 +689,43 @@ class PollsCog(commands.Cog, name = "Polls"):
 		return choices
 
 	async def autocomplete_duration(self, interaction: discord.Interaction, current: float, *, clear = None):
+		choices = []
+
+		strcurrent = current if isinstance(current, str) else (str(current) if not math.isnan(current) else "")
 		try:
 			current = float(current)
+
+			if clear and (current == clear or math.isnan(current)):
+				choices += [app_commands.Choice(name = f"Clear duration value.", value = -1)]
+				
+			if current < discord.utils.utcnow().timestamp():
+				ranges = {
+					"seconds": "second",
+					"minutes": "minute",
+					"hours": "hour",
+					"days": "day",
+					"weeks": "week"
+				}
+				times = []
+				for k, v in ranges.items():
+					try:
+						times.append([datetime.timedelta(**{k: current}), v])
+					except OverflowError:
+						continue
+
+				for t in times:
+					secs = int(round(t[0].total_seconds(), 0))
+					if 15 <= secs <= 60480000: # Between 15s and 100w
+						f = lambda x: int(x) if x.is_integer() else x
+						choices.append(app_commands.Choice(name = f"{f(current)} {t[1]}{self.s(f(current))}", value = secs))
 		except ValueError:
-			return []
+			pass
 
-		if clear and (current == clear or math.isnan(current)):
-			return [app_commands.Choice(name = f"Clear duration value.", value = -1)]
-		elif current < discord.utils.utcnow().timestamp():
-			ranges = {
-				"seconds": "second",
-				"minutes": "minute",
-				"hours": "hour",
-				"days": "day",
-				"weeks": "week"
-			}
-			times = []
-			for k, v in ranges.items():
-				try:
-					times.append([datetime.timedelta(**{k: current}), v])
-				except OverflowError:
-					continue
+		if not isinstance(current, float) or current >= 1970 or math.isnan(current):
+			timestamp = TimeCog.strtodatetime(TimeCog, strcurrent)
+			choices += [app_commands.Choice(name = f"End at: {self.strf(t)}", value = int(t.timestamp())) for t in timestamp]
 
-			choices = []
-			for t in times:
-				secs = int(round(t[0].total_seconds(), 0))
-				if 15 <= secs <= 60480000: # Between 15s and 100w
-					f = lambda x: int(x) if x.is_integer() else x
-					choices.append(app_commands.Choice(name = f"{f(current)} {t[1]}{self.s(f(current))}", value = secs))
-			return choices
-
-		else:
-			try:
-				time = datetime.datetime.fromtimestamp(current, datetime.timezone.utc)
-				return [app_commands.Choice(name = f"End at: {self.strf(time)}", value = int(current))]
-			except (OSError, OverflowError):
-				return []
-		return []
+		return choices[:25]
 
 
 
@@ -2068,16 +2069,12 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	@pollschedule.autocomplete("schedule_time")
 	async def pollschedule_autocomplete_schedule_time(self, interaction: discord.Interaction, current: int):
-		if not current.isdigit() or int(current) == -1:
-			return [app_commands.Choice(name = f"Clear scheduled time.", value = -1)]
-		elif int(current) >= int(discord.utils.utcnow().timestamp()):
-			current = int(current)
-			try:
-				time = datetime.datetime.fromtimestamp(current, datetime.timezone.utc)
-				return [app_commands.Choice(name = f"{self.strf(time)}", value = int(current))]
-			except (OSError, OverflowError):
-				return []
-		return []
+		choices = []
+		if current.isdigit() and int(current) == -1 or not current:
+			choices += [app_commands.Choice(name = f"Clear scheduled time.", value = -1)]
+		timestamp = TimeCog.strtodatetime(TimeCog, current)
+		choices += [app_commands.Choice(name = self.strf(t), value = int(t.timestamp())) for t in timestamp]
+		return choices[:25]
 
 
 
