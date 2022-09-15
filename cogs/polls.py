@@ -508,25 +508,28 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 		if showextra and poll['published']:
-			if interaction.guild_id == poll['guild_id']:
-				msg = await interaction.guild.get_channel(guild['default_channel_id']).fetch_message(poll['message_id'])
-			elif tag and interaction.guild_id in tag['crosspost_servers']:
-				found = False
-				for cid in tag['crosspost_channels']:
-					channel = interaction.guild.get_channel(cid)
-					if channel:
-						for mid in poll['crosspost_message_ids']:
-							try:
-								msg = await channel.fetch_message(mid)
-							except NotFound:
-								continue
-							else:
-								found = True
-								break
-					if found: break
+			try:
+				if interaction.guild_id == poll['guild_id']:
+					msg = await interaction.guild.get_channel(guild['default_channel_id']).fetch_message(poll['message_id'])
+				elif tag and interaction.guild_id in tag['crosspost_servers']:
+					found = False
+					for cid in tag['crosspost_channels']:
+						channel = interaction.guild.get_channel(cid)
+						if channel:
+							for mid in poll['crosspost_message_ids']:
+								try:
+									msg = await channel.fetch_message(mid)
+								except NotFound:
+									continue
+								else:
+									found = True
+									break
+						if found: break
 
-			if msg:
-				value += f"Vote [here](<{msg.jump_url}>)!"
+				if msg:
+					value += f"Vote [here](<{msg.jump_url}>)!"
+			except NotFound:
+				pass
 
 		if name and value:
 			embed.add_field(name = name, value = value)
