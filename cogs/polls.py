@@ -419,10 +419,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if poll['duration']: embed.add_field(name = "Duration", value = self.strfduration(poll['duration']))
 
 		if poll['message_id']:
-			message = await self.bot.get_channel(self.fetchchannelid(guild, tag)).fetch_message(poll['message_id'])
-			if message:
+			try:
+				message = await self.bot.get_channel(self.fetchchannelid(guild, tag)).fetch_message(poll['message_id'])
 				embed.add_field(name = "Poll Message", value = f"[{poll['question']}]({message.jump_url})")
-			else:
+			except NotFound:
 				embed.add_field(name = "Poll Message", value = f"Can't locate message {message_id}")
 
 		display = [[poll['show_question'], "Question"], [poll['show_options'], "Options"], [poll['show_voting'], "Current Votes"]]
