@@ -2587,7 +2587,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		ping_role = "Role to ping and self-assign after each poll. More roles can be added with /pollsadmin tag pingrole.",
 		do_ping = "Ping the role after each poll.",
 		do_role_assign = "Let users self-assign the ping role with a button.",
-		recycle_end_message = "Delete old end-messages when new end-message is sent."
+		share_channel_end_message = "Share end-message sending/deletion with other tags in the same channel."
 		)
 	@owner_only()
 	async def pollsadmintagcreate(self, interaction: discord.Interaction,
@@ -2599,7 +2599,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		ping_role: discord.Role = None,
 		do_ping: bool = False,
 		do_role_assign: bool = False,
-		recycle_end_message: bool = True,
+		share_channel_end_message: bool = True,
 		):
 		"""Creates a new tag."""
 
@@ -2633,7 +2633,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			'colour': colour,
 			'end_message': end_message,
 			'end_message_latest_ids': [],
-			'end_message_replace': recycle_end_message,
+			'end_message_replace': share_channel_end_message,
 			'end_message_role_ids': [ping_role.id] if ping_role else [],
 			'end_message_ping': do_ping,
 			'end_message_self_assign': do_role_assign,
@@ -2648,7 +2648,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				f"Colour: #{hex(colour).strip('0x').upper()}" if colour else f"No colour.",
 				f"End-message:\n> {end_message}" if end_message else f"No end-message.",
 				"",
-				f"Recycle end-message: {recycle_end_message}",
+				f"Share channel end-message: {share_channel_end_message}",
 				f"Pinging role: {do_ping}",
 				f"Self-assigning role: {do_role_assign}"
 				]),
@@ -2691,16 +2691,17 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 	@pollsadmintaggroup.command(name="edit")
 	@app_commands.describe(
+		tag = "ID of Tag to edit.",
 		do_ping = "Ping the role after each poll.",
 		do_role_assign = "Let users self-assign the ping role with a button.",
-		recycle_end_message = "Delete old end-messages when new end-message is sent."
+		share_channel_end_message = "Share end-message sending/deletion with other tags in the same channel."
 		)
 	@owner_only()
 	async def pollsadmintagedit(self, interaction: discord.Interaction,
 		tag: str,
 		do_ping: bool = None,
 		do_role_assign: bool = None,
-		recycle_end_message: bool = None,
+		share_channel_end_message: bool = None,
 		):
 		"""Edits a tag."""
 
@@ -2754,7 +2755,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		embedtxt = {
 			'title': f"Editing Tag {tag['id']}",
-			'description': "`Do Ping`, `Do Role Assign`, and `Recycle End Message` can only be set via the slash command parameters. Click Confirm if you're only editing those parameters."
+			'description': "`Do Ping`, `Do Role Assign`, and `Share Channel End Message` can only be set via the slash command parameters. Click Confirm if you're only editing those parameters."
 		}
 
 		editmodalembed = self.editmodalembed
@@ -2800,7 +2801,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		view.items['num'].value = int(view.items['num'].value) if view.items['num'].value else None
 		final = {k: v.value for k, v in view.items.items()}
 
-		for k, v in {'end_message_ping': do_ping, 'end_message_self_assign': do_role_assign, 'end_message_replace': recycle_end_message}.items():
+		for k, v in {'end_message_ping': do_ping, 'end_message_self_assign': do_role_assign, 'end_message_replace': share_channel_end_message}.items():
 			if v is not None:
 				final[k] = v
 
@@ -2818,7 +2819,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				f"Colour: #{hex(x['colour']).strip('0x').upper()}" if x['colour'] else f"No colour.",
 				f"End-message:\n> {x['end_message']}" if x['end_message'] else f"No end-message.",
 				"",
-				f"Recycle end-message: {x['end_message_replace']}",
+				f"Share channel end-message: {x['end_message_replace']}",
 				f"Pinging role: {x['end_message_ping']}",
 				f"Self-assigning role: {x['end_message_self_assign']}",
 				]),
@@ -2841,6 +2842,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	@pollsadmintaggroup.command(name="pingrole")
+	@app_commands.describe(
+		tag = "ID of Tag to add/remove role.",
+		ping_role = "Role to add/remove from tag."
+		)
 	@owner_only()
 	async def pollsadmintagpingrole(self, interaction: discord.Interaction, 
 		tag: str,
