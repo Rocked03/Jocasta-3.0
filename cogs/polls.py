@@ -446,11 +446,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		embed = discord.Embed()
 
 		if poll['show_question']:
-			if not poll['num']:
-				embed.title = poll['question']
-			else:
-				embed.title = f"#{poll['num']}: {poll['question']}"
-
+			embed.title = poll['question']
 			embed.description = poll['description']
 
 		embed.colour = self.fetchcolour(guild, tag)
@@ -540,7 +536,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if poll['image']: embed.set_image(url = poll['image'])
 
 		if tag:
-			embed.set_footer(text = f"{tag['name']} • [{poll['id']}]")
+			if poll['num']:
+				embed.set_footer(text = f"#{poll['num']} {tag['name']} • [{poll['id']}]")
+			else:
+				embed.set_footer(text = f"{tag['name']} • [{poll['id']}]")
 		else:
 			embed.set_footer(text = f"[{poll['id']}]")
 
