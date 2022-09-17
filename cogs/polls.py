@@ -537,7 +537,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		if tag:
 			if poll['num']:
-				embed.set_footer(text = f"#{poll['num']} {tag['name']} • [{poll['id']}]")
+				embed.set_footer(text = f"#{poll['num']} • {tag['name']} • [{poll['id']}]")
 			else:
 				embed.set_footer(text = f"{tag['name']} • [{poll['id']}]")
 		else:
@@ -877,9 +877,18 @@ class PollsCog(commands.Cog, name = "Polls"):
 				endmsgs.append(await ch.send(**txt))
 
 
+			endmsgtags = [tag]
 			if tag['end_message_replace']:
-				if tag['end_message_latest_ids']:
-					for message_id in tag['end_message_latest_ids']:
+				alltags = await self.bot.db.fetch("SELECT * FROM pollstags WHERE end_message_replace = $1", True)
+				channels = [tag['channel_id']] + tag['crosspost_channels']
+				endmsgtags += [i for i in alltags if (i['channel_id'] in channels or any(j in channels for j in i['crosspost_channels'])) and i['id'] != tag['id']]
+
+			for t in endmsgtags:
+				if t['end_message_latest_ids']:
+					latest = t['end_message_latest_ids']
+					print(latest)
+					change = False
+					for message_id in latest:
 						for ch in [channel] + crossposts:
 							try:
 								msg = await ch.fetch_message(message_id)
@@ -887,11 +896,13 @@ class PollsCog(commands.Cog, name = "Polls"):
 								continue
 							else:
 								await msg.delete()
+								change = True
+								latest.remove(message_id)
 								break
+					if change:
+						await self.bot.db.execute("UPDATE pollstags SET  end_message_latest_ids = $2 WHERE id = $1", t['id'], latest)
 			
 			await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1", tag['id'], [m.id for m in endmsgs])
-
-
 
 		poll = await self.fetchpoll(poll['id'])
 		await self.updatepollmessage(poll)
