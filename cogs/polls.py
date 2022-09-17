@@ -888,7 +888,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 							else:
 								await msg.delete()
 								break
-				await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1", tag['id'], [m.id for m in endmsgs])
+			
+			await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1", tag['id'], [m.id for m in endmsgs])
 
 
 
@@ -1475,11 +1476,11 @@ class PollsCog(commands.Cog, name = "Polls"):
 		)
 	async def pollcreate(self, interaction: discord.Interaction, 
 			question: str = None, 
-			opt_1: str = None, opt_2: str = None, 
+			opt_1: str = None, opt_2: str = None,
+			tag: str = None,
 			description: str = None,
 			thread_question: str = None,
 			image: Attachment = None,
-			tag: str = None,
 			opt_3: str = None, opt_4: str = None, opt_5: str = None, opt_6: str = None, opt_7: str = None, opt_8: str = None,
 			show_question: bool = True, show_options: bool = True, show_voting: bool = True
 		):
@@ -2731,7 +2732,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			'colour': self.EditItem(
 				name = 'Colour Hex Code',
 				placeholder = 'Paste your colour hex code here... e.g. 7289da',
-				value = hex(tag['colour']).strip('0x').upper(),
+				value = hex(tag['colour']).strip('0x').upper() if tag['colour'] else None,
 				max_length = 6,
 				required = False
 			),
