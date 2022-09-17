@@ -496,7 +496,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			end_time = poll['time'] + poll['duration']
 			if poll['active']: name = "Poll ends at"
 			else: name = "Poll finished at"
-			value = "<t:{0}:f>, <t:{0}:R>\n\n".format(int(end_time.timestamp()))
+			value = "<t:{0}:f>, <t:{0}:R>\n".format(int(end_time.timestamp()))
 		elif poll['active']:
 			name = "The poll is currently open for voting!"
 			if not showextra:
@@ -506,7 +506,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if showextra and poll['published']:
 			try:
 				if interaction.guild_id == poll['guild_id']:
-					msg = await interaction.guild.get_channel(guild['default_channel_id']).fetch_message(poll['message_id'])
+					if not tag:
+						msg = await interaction.guild.get_channel(self.client.fetchchannelid(guild, tag)).fetch_message(poll['message_id'])
+					else:
+						msg = await interaction.guild.get_channel(tag['channel_id']).fetch_message(poll['message_id'])
 				elif tag and interaction.guild_id in tag['crosspost_servers']:
 					found = False
 					for cid in tag['crosspost_channels']:
@@ -523,7 +526,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 						if found: break
 
 				if msg:
-					value += f"Vote [here](<{msg.jump_url}>)!"
+					if poll['active']:
+						value += f"Vote [here](<{msg.jump_url}>)!"
+					else:
+						value += f"View poll [here](<{msg.jump_url}>)."
 			except NotFound:
 				pass
 
