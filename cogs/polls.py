@@ -412,7 +412,11 @@ class PollsCog(commands.Cog, name = "Polls"):
 		embed.add_field(name = "Published?", value = poll['published'])
 		embed.add_field(name = "Active?", value = poll['active'])
 
-		if poll['thread_question']: embed.add_field(name = "Thread Question", value = poll['thread_question'])
+		if poll['thread_question']: 
+			if not self.defaultthreadmsg(poll['thread_question'])[0]:
+				embed.add_field(name = "Thread Question", value = poll['thread_question'])
+			else:
+				embed.add_field(name = "Thread Question", value = "`Default`")
 		if poll['tag']: embed.add_field(name = "Tag", value = f"`{tag['name']}`")
 
 		if poll['time']: embed.add_field(name = "Publish Date", value = f"<t:{int(poll['time'].timestamp())}:F> (`{int(poll['time'].timestamp())}`)")
@@ -507,7 +511,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			try:
 				if interaction.guild_id == poll['guild_id']:
 					if not tag:
-						msg = await interaction.guild.get_channel(self.client.fetchchannelid(guild, tag)).fetch_message(poll['message_id'])
+						msg = await interaction.guild.get_channel(self.fetchchannelid(guild, tag)).fetch_message(poll['message_id'])
 					else:
 						msg = await interaction.guild.get_channel(tag['channel_id']).fetch_message(poll['message_id'])
 				elif tag and interaction.guild_id in tag['crosspost_servers']:
@@ -537,7 +541,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 			embed.add_field(name = name, value = value)
 
 
-		if poll['thread_question'] and (not showextra or poll['active']): embed.add_field(name = "Discuss in the thread:", value = poll['thread_question'])
+		if poll['thread_question'] and (not showextra or poll['active']): 
+			threadq = self.defaultthreadmsg(poll['thread_question'])
+			if not threadq[0]:
+				embed.add_field(name = "Discuss in the thread:", value = threadq[1])
 
 		if poll['image']: embed.set_image(url = poll['image'])
 
@@ -829,8 +836,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 				if poll['num']: name = f"{poll['num']} - {name}"
 				try:
 					thread = await msg.create_thread(name = name)
-					threadq = await thread.send(poll['thread_question'])
-					await threadq.pin()
+					threadmsg = self.defaultthreadmsg(poll['thread_question'])
+					if not threadmsg[0]:
+						threadq = await thread.send(threadmsg[1])
+						await threadq.pin()
 				except commands.Forbidden:
 					pass
 
@@ -1113,6 +1122,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 			await self.bot.db.execute("UPDATE polls SET votes = $2 WHERE id = $1", poll['id'], total)
 		return total
 
+	def defaultthreadmsg(self, msg, vote = None):
+		default = False
+		if str(msg).lower().strip() in ["def", "default"]:
+			default = True
+			if vote is not None:
+				msg = f"Why did you choose *{vote}*?"
+			else:
+				msg = f"Why?"
+		return [default, msg]
 
 
 
@@ -1280,9 +1298,13 @@ class PollsCog(commands.Cog, name = "Polls"):
 					# await thread.add_user(interaction.user)
 					if choice is not None:
 						embed = discord.Embed()
-						embed.description = f"Discuss: *{poll['thread_question']}*"
-						embed.set_footer(text = "See pins for the above question!")
-						await thread.send(f"{interaction.user.mention}, thanks for voting!", embed=embed, delete_after=30)
+						threadmsg = self.defaultthreadmsg(poll['thread_question'], poll['choices'][choice])
+						if not threadmsg[0]:
+							embed.description = f"Discuss: *{threadmsg[1]}*"
+							embed.set_footer(text = "See pins for the above question!")
+						else:
+							embed.description = threadmsg[1]
+						await thread.send(f"{interaction.user.mention}, thanks for voting!", embed=embed, delete_after=45)
 			except Forbidden:
 				pass
 			finally:
@@ -1584,7 +1606,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 				'thread_question': self.EditItem(
 					name = 'Thread Question',
-					placeholder = 'Type your thread question here...',
+					placeholder = 'Type your thread question here... "def" for default msg, empty to ignore.',
 					value = poll['thread_question'],
 					style = discord.TextStyle.long,
 					required = False,
@@ -1805,7 +1827,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 				'thread_question': self.EditItem(
 					name = 'Thread Question',
-					placeholder = 'Type your thread question here...',
+					placeholder = 'Type your thread question here... "def" for default msg, empty to ignore.',
 					value = poll['thread_question'],
 					style = discord.TextStyle.long,
 					required = False,
