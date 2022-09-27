@@ -1,4 +1,4 @@
-import asyncio, asyncpg, copy, datetime, discord, enum, math, random, re, sys, traceback
+import aiohttp, asyncio, asyncpg, copy, datetime, discord, enum, io, math, random, re, sys, traceback
 from config import *
 from cogs.time import TimeCog
 from discord import *
@@ -386,6 +386,33 @@ class PollsCog(commands.Cog, name = "Polls"):
 		# await ctx.send(embed = await self.pollinfoembed(await self.fetchpoll(60320)), view = await self.pollbuttons(60320))
 
 		# await self.vote({'id': 88071}, ctx.author, 1)
+
+		# url = "https://i.imgur.com/4Iz84pD.png"
+		# async with aiohttp.ClientSession() as s:
+		# 	async with s.get(url) as r:
+		# 		f = discord.File(io.BytesIO(await r.read()), filename = "image.png", description = "test")
+
+		# e = discord.Embed(colour = 0x2f3136)
+		# e.set_image(url="attachment://image.png")
+		# # await ctx.send(file=f, embed=e)
+		# await ctx.send(file=f)
+
+
+		# votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
+
+		# for user in votes:
+		# 	user_id = user['user_id']
+		# 	for p, v in user.items():
+		# 		if p == 'user_id':
+		# 			continue
+		# 		if v is not None:
+		# 			await self.bot.db.execute("INSERT INTO pollsvotesnew (id, user_id, poll_id, choice) VALUES ($1, $2, $3, $4)", user_id + int(p), user_id, int(p), v)
+		# 			print(user_id, p, v)
+
+		# print((await self.bot.db.fetch("SELECT * FROM pollsvotesnew"))[0])
+
+		print('done')
+
 
 		pass
 
@@ -810,13 +837,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 			if set_time:
 				await self.bot.db.execute("UPDATE polls SET time = $2 WHERE id = $1", poll['id'], set_time)
 
-		try:
-			await self.bot.db.execute("ALTER TABLE pollsvotes ADD \"{}\" integer".format(str(poll['id'])))
-		except asyncpg.exceptions.DuplicateColumnError:
-			await self.bot.db.execute("ALTER TABLE pollsvotes DROP COLUMN \"{}\"".format(str(poll['id'])))
-			await self.bot.db.execute("ALTER TABLE pollsvotes ADD \"{}\" integer".format(str(poll['id'])))
-
-
 		msgs = [[await self.formatpollmessage(p), p] for p in [i[0] for i in polls]]
 		final = []
 
@@ -1115,8 +1135,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 							await msg.edit(**txt)
 
 	async def updatevotes(self, poll):
-		votes = await self.bot.db.fetch("SELECT \"{}\" FROM pollsvotes".format(poll['id']))
-		votes = [i[str(poll['id'])] for i in votes]
+		votes = await self.bot.db.fetch("SELECT (choice) from pollsvotes WHERE poll_id = $1", poll['id'])
+		votes = [i['choice'] for i in votes]
 		total = [votes.count(i) for i in range(len(poll['choices']))]
 		if total != poll['votes']:
 			await self.bot.db.execute("UPDATE polls SET votes = $2 WHERE id = $1", poll['id'], total)
@@ -1273,20 +1293,23 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 	async def vote(self, poll, user, choice = None):
-		vote = await self.bot.db.fetchrow("SELECT * FROM pollsvotes WHERE user_id = $1", user.id)
-		if not vote:
-			await self.bot.db.execute("INSERT INTO pollsvotes (user_id) VALUES ($1)", user.id)
-			vote = await self.bot.db.fetchrow("SELECT * FROM pollsvotes WHERE user_id = $1", user.id)
+		vote = await self.bot.db.fetchrow("SELECT * FROM pollsvotes WHERE user_id = $1 AND poll_id = $2", user.id, poll['id'])
 
 		if poll['active'] and choice is not None:
-			if choice == -1: choice = None
-			await self.bot.db.execute("UPDATE pollsvotes SET \"{}\" = $2 WHERE user_id = $1".format(str(poll['id'])), user.id, choice)
+			if choice == -1:
+				await self.bot.db.execute("DELETE FROM pollsvotes WHERE user_id = $1 AND poll_id = $2", user.id, poll['id'])
+			else:
+				if not vote:
+					await self.bot.db.execute("INSERT INTO pollsvotes (user_id, poll_id, choice) VALUES ($1, $2, $3)", user.id, poll['id'], choice)
+				else:
+					await self.bot.db.execute("UPDATE pollsvotes SET choice = $1 WHERE user_id = $2 AND poll_id = $3", choice, user.id, poll['id'])
 
 			await self.updatepollmessage(poll)
 
 			return choice
 		else:
-			return vote[str(poll['id'])]
+			if vote: return vote['choice']
+			else: return None
 
 	async def add_to_thread(self, interaction, poll = None, choice = None, show_vote = False):
 		thread = interaction.message.guild.get_channel_or_thread(interaction.message.id)
@@ -1722,6 +1745,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			await msg.edit(content = "Timed out.", view = view)
 		elif view.value:
 			await self.bot.db.execute("DELETE FROM polls WHERE id = $1", poll_id)
+			await self.bot.db.execute("DELETE FROM pollsvotes WHERE poll_id = $1", poll_id)
 
 			findtag = lambda x: next(i for i in tags if i['id'] == x['tag'])
 
@@ -2381,23 +2405,15 @@ class PollsCog(commands.Cog, name = "Polls"):
 		if user is None: user = interaction.user
 		else: op = False
 
-		votes = await self.bot.db.fetchrow("SELECT * FROM pollsvotes WHERE user_id = $1", user.id)
-		if not votes:
-			await self.bot.db.execute("INSERT INTO pollsvotes (user_id) VALUES ($1)", user.id)
-			votes = await self.bot.db.fetchrow("SELECT * FROM pollsvotes WHERE user_id = $1", user.id)
+		votes = await self.bot.db.fetch("SELECT * FROM pollsvotes WHERE user_id = $1", user.id)
 
-		votes = {int(k): v for k, v in votes.items() if k != 'user_id'}
+		# votes = {int(k): v for k, v in votes.items() if k != 'user_id'}
+
+		votes = {v['poll_id']: v['choice'] for v in votes}
 
 		if poll_id is None:
-			voted = {'voted': [], 'unvoted': []}
-			for k, v in votes.items():
-				if v is not None:
-					voted['voted'].append(k)
-				else:
-					voted['unvoted'].append(k)
-
 			if not show_unvoted:
-				poll_ids = voted['voted']
+				poll_ids = list(votes.keys())
 
 				polls = await self.bot.db.fetch("SELECT * FROM polls WHERE id = ANY($1::integer[])", poll_ids)
 				polls = [i for i in polls if await self.canview(i, interaction.guild_id)]
@@ -2425,10 +2441,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 			else:
-				poll_ids = voted['unvoted']
-
-				polls = await self.bot.db.fetch("SELECT * FROM polls WHERE id = ANY($1::integer[])", poll_ids)
-				polls = [i for i in polls if i['active'] and await self.canview(i, interaction.guild_id)]
+				polls = await self.bot.db.fetch("SELECT * FROM polls WHERE active = $1", True)
+				polls = [i for i in polls if i['id'] not in votes.keys() and await self.canview(i, interaction.guild_id)]
 				polls = self.sortpolls(polls, self.Sort.oldest)
 
 				entries = polls
@@ -2484,8 +2498,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 			embed = discord.Embed(title = f"{user.name}'s Polls", colour = await self.fetchcolourbyid(await self.fetchguildid(interaction), None), timestamp = discord.utils.utcnow())
 
-			choice = votes[int(poll_id)]
-			if choice is not None:
+			# choice = votes[int(poll_id)]
+			# if choice is not None:
+			if poll['id'] in votes.keys():
+				choice = votes[poll['id']]
 				value = f"{'You' if op else user.name} voted: {self.choiceformat(choice)} " + (f"*{poll['choices'][choice]}*" if poll['show_options'] else '')
 			else:
 				value = f"{'''You haven't''' if op else f'''{user.name} hasn't'''} voted on this poll yet!"
@@ -2569,24 +2585,21 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 		async def update_votes():
-			columns = await self.bot.db.fetch("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' and table_name = 'pollsvotes' and column_name != 'user_id'")
-			columns = [i['column_name'] for i in columns]
-
 			polls = await self.bot.db.fetch("SELECT * FROM polls")
 			pollids = [i['id'] for i in polls if i['published']]
 
-			for c in columns:
-				if int(c) not in pollids:
-					await self.bot.db.execute("ALTER TABLE pollsvotes DROP COLUMN \"{}\"".format(c))
+			votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
+			votepolls = {i['poll_id'] for i in votes}
 
-			for pid in pollids:
-				if str(pid) not in columns:
-					await self.bot.db.execute("ALTER TABLE pollsvotes ADD \"{}\" integer".format(str(pid)))
+			for p in votepolls:
+				if p not in pollids:
+					await self.bot.db.execute("DELETE FROM pollvotes WHERE poll_id = $1", p)
+
 
 			votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
 			for poll in polls:
 				if not poll['active']: continue
-				v = [i[str(poll['id'])] for i in votes]
+				v = [i['choice'] for i in votes if i['poll_id'] == poll['id']]
 				total = [v.count(i) for i in range(len(poll['choices']))]
 
 				if total != poll['votes']:
