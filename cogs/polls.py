@@ -1300,7 +1300,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				await self.bot.db.execute("DELETE FROM pollsvotes WHERE user_id = $1 AND poll_id = $2", user.id, poll['id'])
 			else:
 				if not vote:
-					await self.bot.db.execute("INSERT INTO pollsvotes (id, user_id, poll_id, choice) VALUES ($1, $2, $3)", user.id + poll['id'], user.id, poll['id'], choice)
+					await self.bot.db.execute("INSERT INTO pollsvotes (id, user_id, poll_id, choice) VALUES ($1, $2, $3, $4)", user.id + poll['id'], user.id, poll['id'], choice)
 				else:
 					await self.bot.db.execute("UPDATE pollsvotes SET choice = $1 WHERE user_id = $2 AND poll_id = $3", choice, user.id, poll['id'])
 
