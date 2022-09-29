@@ -398,16 +398,16 @@ class PollsCog(commands.Cog, name = "Polls"):
 		# await ctx.send(file=f)
 
 
-		# votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
+		votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
 
-		# for user in votes:
-		# 	user_id = user['user_id']
-		# 	for p, v in user.items():
-		# 		if p == 'user_id':
-		# 			continue
-		# 		if v is not None:
-		# 			await self.bot.db.execute("INSERT INTO pollsvotesnew (id, user_id, poll_id, choice) VALUES ($1, $2, $3, $4)", user_id + int(p), user_id, int(p), v)
-		# 			print(user_id, p, v)
+		for user in votes:
+			user_id = user['user_id']
+			for p, v in user.items():
+				if p == 'user_id':
+					continue
+				if v is not None:
+					await self.bot.db.execute("INSERT INTO pollsvotesnew (id, user_id, poll_id, choice) VALUES ($1, $2, $3, $4)", user_id + int(p), user_id, int(p), v)
+					print(user_id, p, v)
 
 		# print((await self.bot.db.fetch("SELECT * FROM pollsvotesnew"))[0])
 
@@ -1300,7 +1300,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 				await self.bot.db.execute("DELETE FROM pollsvotes WHERE user_id = $1 AND poll_id = $2", user.id, poll['id'])
 			else:
 				if not vote:
-					await self.bot.db.execute("INSERT INTO pollsvotes (user_id, poll_id, choice) VALUES ($1, $2, $3)", user.id, poll['id'], choice)
+					await self.bot.db.execute("INSERT INTO pollsvotes (id, user_id, poll_id, choice) VALUES ($1, $2, $3)", user.id + poll['id'], user.id, poll['id'], choice)
 				else:
 					await self.bot.db.execute("UPDATE pollsvotes SET choice = $1 WHERE user_id = $2 AND poll_id = $3", choice, user.id, poll['id'])
 
