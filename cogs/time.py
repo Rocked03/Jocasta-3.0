@@ -326,7 +326,7 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 		end = int(event.end_time.timestamp()) if event.end_time else None
 
 		embed = discord.Embed(
-			title = event.name,
+			title = f"🗓️ | {event.name}",
 			description = "Starts at <t:{0}:F>, <t:{0}:R>".format(start)
 				+ ("\nEnds at <t:{0}:F>, <t:{0}:R>".format(end) if end else ""),
 			colour = 0x2f3136
