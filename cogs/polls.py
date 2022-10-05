@@ -642,7 +642,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		return embed
 
 
-	def sortpolls(self, polls: list, sort: Sort = Sort.newest):
+	def sortpolls(self, polls: list, sort: Sort = Sort.poll_id):
 		# poll id, newest, oldest, most votes, least votes
 		polls.sort(key = lambda x: x['id']) # base poll id order
 
@@ -2255,7 +2255,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 	async def pollsearch(self, interaction: discord.Interaction,
 			poll_id: int = None,
 			keyword: str = None,
-			sort: Choice[str] = Sort.poll_id.name,
+			sort: Choice[str] = Sort.newest.name,
 			tag: str = None,
 			active: bool = None,
 			published: bool = None,
