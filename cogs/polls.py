@@ -642,7 +642,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 		return embed
 
 
-	def sortpolls(self, polls: list, sort: Sort = Sort.poll_id):
+	def sortpolls(self, polls: list, sort: Sort = Sort.newest):
 		# poll id, newest, oldest, most votes, least votes
 		polls.sort(key = lambda x: x['id']) # base poll id order
 
