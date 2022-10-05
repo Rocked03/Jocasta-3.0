@@ -642,11 +642,12 @@ class PollsCog(commands.Cog, name = "Polls"):
 		return embed
 
 
-	def sortpolls(self, polls: list, sort: Sort = Sort.poll_id):
+	def sortpolls(self, polls: list, sort: Sort = Sort.newest):
 		# poll id, newest, oldest, most votes, least votes
-		polls.sort(key = lambda x: x['id']) # default poll id order
+		polls.sort(key = lambda x: x['id']) # base poll id order
 
-		if sort == self.Sort.newest: key = lambda x: x['time'].timestamp() * -1 if x['time'] else 1
+		if sort == self.Sort.poll_id: key = lambda x: x['id']
+		elif sort == self.Sort.newest: key = lambda x: x['time'].timestamp() * -1 if x['time'] else 1
 		elif sort == self.Sort.oldest: key = lambda x: x['time'].timestamp() if x['time'] else 99999999999999999999999999999999
 		elif sort == self.Sort.most_votes: key = lambda x: sum(x['votes']) * -1 if x['votes'] else 1
 		elif sort == self.Sort.least_votes: key = lambda x: sum(x['votes']) if x['votes'] else 99999999999999999999999999999999
