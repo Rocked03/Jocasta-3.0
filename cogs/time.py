@@ -312,8 +312,11 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 
 
 	@timestampgroup.command(name="event")
-	@app_commands.describe(event = "Event to attain time.")
-	async def timestampevent(self, interaction: discord.Interaction, event: str):
+	@app_commands.describe(
+		event = "Event to attain time.",
+		show_end = "Show end time of event"
+	)
+	async def timestampevent(self, interaction: discord.Interaction, event: str, show_end: bool = False):
 		"""Gives relational start time for events."""
 		await interaction.response.defer()
 
@@ -323,11 +326,11 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 			return await interaction.followup.send("Event could not be found in this server.")
 
 		start = int(event.start_time.timestamp())
-		end = int(event.end_time.timestamp()) if event.end_time else None
+		end = int(event.end_time.timestamp()) if show_end and event.end_time else None
 
 		embed = discord.Embed(
 			title = f"🗓️ | {event.name}",
-			description = "Starts at <t:{0}:F>, <t:{0}:R>".format(start)
+			description = "Starts at **<t:{0}:F>**, <t:{0}:R>".format(start)
 				+ ("\nEnds at <t:{0}:F>, <t:{0}:R>".format(end) if end else ""),
 			colour = 0x2f3136
 			)
