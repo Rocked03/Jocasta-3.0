@@ -12,7 +12,8 @@ class Jocasta(commands.Bot):
 			'funcs.postgresql',
 			'cogs.owner',
 			'cogs.polls',
-			'cogs.time'
+			'cogs.time',
+			'cogs.news'
 		]
 
 		for extension in initial_extensions:
@@ -33,7 +34,7 @@ bot.tasks = {}
 @bot.event
 async def on_connect():
 	print('Loaded Discord')
-	activity = discord.Game(name="Starting up...")
+	# activity = discord.Game(name="Starting up...")
 	# await bot.change_presence(status=discord.Status.idle, activity=activity)
 
 @bot.event
