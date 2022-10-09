@@ -35,7 +35,7 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 			await asyncio.sleep(0.1)
 		self.newsguild = channel.guild
 		self.newsrole = self.newsguild.get_role(newspingrole)
-		self.bot.add_view(self.PingRoleView(role, "Add/Remove Ping Role"))
+		self.bot.add_view(self.PingRoleView(self.newsrole, "Add/Remove Ping Role"))
 
 
 
