@@ -922,7 +922,6 @@ class PollsCog(commands.Cog, name = "Polls"):
 			for t in endmsgtags:
 				if t['end_message_latest_ids']:
 					latest = t['end_message_latest_ids']
-					print(latest)
 					change = False
 					for message_id in latest:
 						for ch in [channel] + crossposts:
