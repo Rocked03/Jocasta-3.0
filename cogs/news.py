@@ -14,6 +14,9 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 
 		self.bot.tree.on_error = self.on_app_command_error
 
+		self.newsguild = None
+		self.newsrole = None
+
 		self.bot.loop.create_task(self.on_startup_scheduler())
 
 
@@ -30,7 +33,9 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 		while channel == None:
 			channel = self.bot.get_channel(newschannels[0])
 			await asyncio.sleep(0.1)
-		self.bot.add_view(self.PingRoleView(channel.guild.get_role(newspingrole), "Add/Remove Ping Role"))
+		self.newsguild = channel.guild
+		self.newsrole = self.newsguild.get_role(newspingrole)
+		self.bot.add_view(self.PingRoleView(role, "Add/Remove Ping Role"))
 
 
 
@@ -93,11 +98,15 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 			else:
 				await self.bot.db.execute("INSERT INTO newschannelsping (channel_id) VALUES ($1)", channel.id)
 
-			role = message.guild.get_role(newspingrole)
-
-			msg = await channel.send(role.mention, view = self.PingRoleView(role, "Add/Remove Ping Role"))
+			msg = await channel.send(self.newsrole.mention, view = self.PingRoleView(self.newsrole, "Add/Remove Ping Role"))
 
 			await self.bot.db.execute("UPDATE newschannelsping SET latest_message_id = $2 WHERE channel_id = $1", channel.id, msg.id)
+
+
+	@commands.Cog.listener()
+	async def on_member_join(self, member):
+		if member.guild == self.newsguild.id:
+			await member.add_roles(self.newsrole)
 
 
 
