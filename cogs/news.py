@@ -91,7 +91,7 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 					except NotFound:
 						pass
 					else:
-						if (datetime.datetime.utcnow() - oldmsg.created_at).total_seconds() >= newspingbuffertime:
+						if (discord.utils.utcnow() - oldmsg.created_at).total_seconds() >= newspingbuffertime:
 							await oldmsg.delete()
 						else:
 							return
