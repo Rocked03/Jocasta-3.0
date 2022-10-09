@@ -39,7 +39,7 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 
 
 
-	guild_ids = [288896937074360321, 1010550869391065169]
+	guild_ids = [281648235557421056, 288896937074360321, 1010550869391065169]
 	newspinggroup = app_commands.Group(name="newsping", description="News Ping commands", guild_ids=guild_ids)
 
 
