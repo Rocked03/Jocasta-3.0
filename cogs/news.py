@@ -105,7 +105,6 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 
 	@commands.Cog.listener()
 	async def on_member_join(self, member):
-		print(member.guild.id, self.newsguild.id)
 		if member.guild.id == self.newsguild.id:
 			await member.add_roles(self.newsrole)
 
