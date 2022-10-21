@@ -1,4 +1,4 @@
-import asyncio, datetime, discord
+import asyncio, datetime, discord, re
 from discord import *
 from discord.app_commands import *
 from discord.app_commands.tree import _log
@@ -76,31 +76,79 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 		if message.channel.id in newschannels:
 			if message.author.id == self.bot.user.id: 
 				return
+
 			try:
 				await message.publish()
 			except discord.errors.Forbidden:
 				pass
 
-			channel = message.channel
 
-			channelinfo = await self.bot.db.fetchrow("SELECT * FROM newschannelsping WHERE channel_id = $1", channel.id)
-			if channelinfo:
-				if channelinfo['latest_message_id']:
-					try:
-						oldmsg = await channel.fetch_message(channelinfo['latest_message_id'])
-					except NotFound:
-						pass
-					else:
-						if (discord.utils.utcnow() - oldmsg.created_at).total_seconds() >= newspingbuffertime:
-							await oldmsg.delete()
-						else:
-							return
+			await self.send_news_ping(message)
+
+
+	@commands.Cog.listener()
+	async def on_message_edit(self, before, message):
+		if message.channel.id in newschannels:
+			if message.author.id == self.bot.user.id:
+				return
+
+			await self.send_news_ping(message)
+
+
+	async def send_news_ping(self, message):
+		if (discord.utils.utcnow() - message.created_at).total_seconds() >= newspingbuffertime:
+			return
+
+
+		urlregex = "(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)"
+
+		titles = set()
+		for e in message.embeds:
+			if e.footer.text == "Twitter":
+				desc = [i for i in e.description.split(' ') if not re.match(urlregex, i)]
+				titles.add(' '.join(desc))
 			else:
-				await self.bot.db.execute("INSERT INTO newschannelsping (channel_id) VALUES ($1)", channel.id)
+				titles.add(e.title)
 
-			msg = await channel.send(self.newsrole.mention, view = self.PingRoleView(self.newsrole, "Add/Remove Ping Role"))
+		titles = {i for i in titles if i and not any(j.startswith(i.strip('...')) and j != i for j in titles)}
 
-			await self.bot.db.execute("UPDATE newschannelsping SET latest_message_id = $2 WHERE channel_id = $1", channel.id, msg.id)
+		if len(re.findall(urlregex, message.content)) != len(message.embeds):
+			return
+
+
+		channel = message.channel
+
+
+		formatmsg = lambda mention, titles: f"{mention} " + '\n'.join(f"*{t}*" for t in titles)
+
+		channelinfo = await self.bot.db.fetchrow("SELECT * FROM newschannelsping WHERE channel_id = $1", channel.id)
+		if channelinfo:
+			if channelinfo['latest_message_id']:
+				try:
+					oldmsg = await channel.fetch_message(channelinfo['latest_message_id'])
+				except NotFound:
+					pass
+				else:
+					if (discord.utils.utcnow() - oldmsg.created_at).total_seconds() >= newspingbuffertime:
+						await oldmsg.delete()
+					else:
+						print(2)
+						current = [i.strip('*') for i in oldmsg.content.replace(f"{self.newsrole.mention} ").split('\n')]
+						for t in titles:
+							if t not in current:
+								current.append(t)
+						new = formatmsg(self.newsrole.mention, current)
+						await oldmsg.edit(content = new)
+						return
+		else:
+			await self.bot.db.execute("INSERT INTO newschannelsping (channel_id) VALUES ($1)", channel.id)
+
+		msg = await channel.send(
+			formatmsg(self.newsrole.mention, titles),
+			view = self.PingRoleView(self.newsrole, "Add/Remove Ping Role"))
+
+		await self.bot.db.execute("UPDATE newschannelsping SET latest_message_id = $2 WHERE channel_id = $1", channel.id, msg.id)
+
 
 
 	@commands.Cog.listener()
