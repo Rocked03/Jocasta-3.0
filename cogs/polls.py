@@ -2255,7 +2255,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 	async def pollsearch(self, interaction: discord.Interaction,
 			poll_id: int = None,
 			keyword: str = None,
-			sort: Choice[str] = Sort.newest.name,
+			sort: Choice[str] = None,
 			tag: str = None,
 			active: bool = None,
 			published: bool = None,
@@ -2264,6 +2264,13 @@ class PollsCog(commands.Cog, name = "Polls"):
 		"""Searches poll questions. Search by poll ID, or by keyword, and filter by tag."""
 
 		await interaction.response.defer()
+
+		# Defaults
+		if sort is None:
+			if published == False:
+				sort = Sort.oldest.name
+			else:
+				sort = Sort.newest.name
 
 		sort = self.Sort.__members__[sort.value if not isinstance(sort, str) else sort]
 
