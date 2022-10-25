@@ -679,6 +679,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			tags = await self.fetchtagsbyguildid(interaction.guild_id)
 		else:
 			tags = await self.fetchalltags()
+		tags.sort(key = lambda x: x['name'])
 		choices = [app_commands.Choice(name = t['name'], value = str(t['id'])) for t in tags if re.search(f"^{current.lower()}", t['name'], re.IGNORECASE)][:25]
 		if current == "" and clear is not None: 
 			choices = choices[:24]
