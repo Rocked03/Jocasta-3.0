@@ -2268,9 +2268,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 		# Defaults
 		if sort is None:
 			if published == False:
-				sort = Sort.oldest.name
+				sort = self.Sort.oldest.name
 			else:
-				sort = Sort.newest.name
+				sort = self.Sort.newest.name
 
 		sort = self.Sort.__members__[sort.value if not isinstance(sort, str) else sort]
 
