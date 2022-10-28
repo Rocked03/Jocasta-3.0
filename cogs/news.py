@@ -105,8 +105,8 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 		titles = set()
 		for e in message.embeds:
 			if e.footer.text == "Twitter":
-				desc = [i for i in e.description.split(' ') if not re.match(urlregex, i)]
-				titles.add(' '.join(desc))
+				desc = [i for i in e.description.split() if not re.match(urlregex, i.strip())]
+				titles.add(' '.join(desc).strip())
 			else:
 				titles.add(e.title)
 
