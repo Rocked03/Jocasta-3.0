@@ -132,8 +132,7 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 					if (discord.utils.utcnow() - oldmsg.created_at).total_seconds() >= newspingbuffertime:
 						await oldmsg.delete()
 					else:
-						print(2)
-						current = [i.strip('*') for i in oldmsg.content.replace(f"{self.newsrole.mention} ").split('\n')]
+						current = [i.strip('*') for i in oldmsg.content.replace(f"{self.newsrole.mention} ", "").split('\n')]
 						for t in titles:
 							if t not in current:
 								current.append(t)
