@@ -525,9 +525,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 		value = ""
 		if poll['duration'] and poll['published']:
 			end_time = poll['time'] + poll['duration']
-			if poll['active']: name = "Poll ends at"
-			else: name = "Poll finished at"
-			value = "<t:{0}:f>, <t:{0}:R>\n".format(int(end_time.timestamp()))
+			if poll['active']: name = "Poll ends" # at"
+			else: name = "Poll finished" # at"
+			# value = "<t:{0}:f>, <t:{0}:R>\n".format(int(end_time.timestamp()))
+			value = "<t:{0}:R>\n".format(int(end_time.timestamp()))
 		elif poll['active']:
 			name = "The poll is currently open for voting!"
 			if not showextra:
