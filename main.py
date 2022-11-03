@@ -13,7 +13,8 @@ class Jocasta(commands.Bot):
 			'cogs.owner',
 			'cogs.polls',
 			'cogs.time',
-			'cogs.news'
+			'cogs.news',
+			'cogs.raidlog',
 		]
 
 		for extension in initial_extensions:
