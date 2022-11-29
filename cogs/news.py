@@ -98,7 +98,7 @@ class NewsCog(discord.ext.commands.Cog, name = "News"):
 
 
 	async def send_news_ping(self, message):
-		async with self.bot.newslock:
+		async with self.newslock:
 			if (discord.utils.utcnow() - message.created_at).total_seconds() >= newspingbuffertime:
 				return
 
