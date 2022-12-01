@@ -1756,7 +1756,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 			if poll['description']: recreate.append(f"question: {poll['description']}")
 			if poll['thread_question']: recreate.append(f"thread_question: {poll['thread_question']}")
 			if poll['image']: recreate.append(f"image: {poll['image']}")
-			if poll['tag']: recreate.append(f"tag: {self.findtag(poll['tag']).name}")
+			if poll['tag']: recreate.append(f"tag: {findtag(poll['tag']).name}")
 			if poll['show_question'] is not None: recreate.append(f"show_question: {poll['show_question']}")
 			if poll['show_options'] is not None: recreate.append(f"show_options: {poll['show_options']}")
 			if poll['show_voting'] is not None: recreate.append(f"show_voting: {poll['show_voting']}")
