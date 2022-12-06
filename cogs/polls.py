@@ -91,6 +91,8 @@ x check perms for commands
 x on-startup views check for archived polls
 - countdown command
 
+- tag schedule queue
+
 - admin: see who's voted
 
 
@@ -877,7 +879,7 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		for poll, t in polls:
 			if poll['time']: # needs to be old time
-				await self.schedule_starts(timestamps = [poll['time'].timestamp()], natural = natural)
+				await self.schedule_starts(timestamps = [poll['time'].timestamp()], natural = natural, tag = poll['tag'])
 			if poll['duration']:
 				await self.schedule_ends(poll_ids = [poll['id']], natural = natural)
 
@@ -941,9 +943,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 			
 			await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1", tag['id'], [m.id for m in endmsgs])
 
-		poll = await self.fetchpoll(poll['id'])
-		await self.updatepollmessage(poll)
-
+		for poll, t in polls:
+			poll = await self.fetchpoll(poll['id'])
+			await self.updatepollmessage(poll)
 
 		return final
 
@@ -1028,26 +1030,26 @@ class PollsCog(commands.Cog, name = "Polls"):
 		print(f"[Polls Scheduler] ({', '.join(str(i) for i in polls)}) Successfully {'started' if start else 'ended'} poll")
 
 
-	async def schedule_starts(self, *, timestamps = [], natural = False):
+	async def schedule_starts(self, *, tag = 0, timestamps = [], natural = False):
 		polls = await self.bot.db.fetch("SELECT * FROM polls WHERE time IS NOT NULL AND published = $1", False)
 
 		for k, v in self.bot.tasks['poll_schedules']['starts'].items():
-			if (not timestamps or k in timestamps) and not natural:
-				print(f"[Polls Scheduler] Cancelled \"start\" scheduler at {k} ({datetime.datetime.fromtimestamp(k, datetime.timezone.utc)})")
+			if (not timestamps or k[1] in timestamps) and (tag == 0 or tag == k[0]) and not natural:
+				print(f"[Polls Scheduler] Cancelled \"start\" scheduler at {k[1]} ({datetime.datetime.fromtimestamp(k[1], datetime.timezone.utc)})")
 				v.cancel()
 
 		groups = {}
 
 		for p in polls:
-			if p['time'] not in groups.keys():
-				groups[p['time']] = [p]
+			if (p['tag'], p['time']) not in groups.keys():
+				groups[(p['tag'], p['time'])] = [p]
 			else:
-				groups[p['time']].append(p)
+				groups[(p['tag'], p['time'])].append(p)
 
 		for k, v in groups.items():
 			if k:
-				if not timestamps or k.timestamp() in timestamps:
-					self.bot.tasks['poll_schedules']['starts'][k.timestamp()] = self.bot.loop.create_task(self.scheduler(v, True))
+				if not timestamps or k[1].timestamp() in timestamps:
+					self.bot.tasks['poll_schedules']['starts'][(k[0], k[1].timestamp())] = self.bot.loop.create_task(self.scheduler(v, True))
 
 	async def schedule_ends(self, *, poll_ids: list = [], natural = False):
 		polls = await self.bot.db.fetch("SELECT * FROM polls WHERE duration IS NOT NULL AND active = $1", True)
