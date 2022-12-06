@@ -1535,16 +1535,18 @@ class PollsCog(commands.Cog, name = "Polls"):
 		opt_1 = "Option 1.", opt_2 = "Option 2.", opt_3 = "Option 3.", opt_4 = "Option 4.", opt_5 = "Option 5.", opt_6 = "Option 6.", opt_7 = "Option 7.", opt_8 = "Option 8.",
 		thread_question = "Question to ask in the accompanying Thread.",
 		image = "Image to accompany Poll Question.",
+		image_url = "Image as URL (alternative to upload)",
 		tag = "Tag categorising this Poll Question.",
 		show_question = "Show question in poll message. Defaults to true.", show_options = "Show options in poll message. Defaults to true.", show_voting = "Show the current state of votes in poll message. Defaults to true."
 		)
-	async def pollcreate(self, interaction: discord.Interaction, 
+	async def pollscreate(self, interaction: discord.Interaction, 
 			question: str = None, 
 			opt_1: str = None, opt_2: str = None,
 			tag: str = None,
 			description: str = None,
 			thread_question: str = None,
 			image: Attachment = None,
+			image_url: str = None,
 			opt_3: str = None, opt_4: str = None, opt_5: str = None, opt_6: str = None, opt_7: str = None, opt_8: str = None,
 			show_question: bool = True, show_options: bool = True, show_voting: bool = True
 		):
@@ -1556,6 +1558,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 		if image and image.content_type.split('/')[0] == 'image':
 			image = image.url
+		elif image_url:
+			image = image_url
 
 		if tag:
 			guild_id = await self.fetchguildid(interaction)
@@ -1706,10 +1710,14 @@ class PollsCog(commands.Cog, name = "Polls"):
 		poll = await self.fetchpoll(poll_id)
 		embed = await self.pollinfoembed(poll)
 
-		await interaction.followup.send(f"Created new poll question: \"{poll['question']}\"", embed = embed)
+		txt = f"Created new poll question: \"{poll['question']}\""
+		if tag is None:
+			txt += "\n***WARNING:** This poll does not have a TAG*"
 
-	@pollcreate.autocomplete("tag")
-	async def pollcreate_autocomplete_tag(self, interaction: discord.Interaction, current: str):
+		await interaction.followup.send(txt, embed = embed)
+
+	@pollscreate.autocomplete("tag")
+	async def pollscreate_autocomplete_tag(self, interaction: discord.Interaction, current: str):
 		return await self.autocomplete_tag(interaction, current)
 
 
