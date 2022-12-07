@@ -1792,7 +1792,8 @@ class PollsCog(commands.Cog, name = "Polls"):
 		opt_1 = "Option 1.", opt_2 = "Option 2.", opt_3 = "Option 3.", opt_4 = "Option 4.", opt_5 = "Option 5.", opt_6 = "Option 6.", opt_7 = "Option 7.", opt_8 = "Option 8.",
 		thread_question = "Question to ask in the accompanying Thread.",
 		image = "Image to accompany Poll Question.",
-		tag = "Tag categorising this Poll Question."
+		tag = "Tag categorising this Poll Question.",
+		show_question = "Show question in poll message.", show_options = "Show options in poll message.", show_voting = "Show the current state of votes in poll message."
 		)
 	async def polledit(self, interaction: discord.Interaction,
 			poll_id: int,
