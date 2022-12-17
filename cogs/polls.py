@@ -2542,12 +2542,97 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 
+	@pollsgroup.command(name="bulkedit")
+	@poll_manager_only()
+	@valid_guild_only()
+	async def pollbulkedit(self, interaction: discord.Interaction,
+			tag: str,
+			show_question: bool = None,
+			show_options: bool = None,
+			show_voting: bool = None,
+		):
+		"""Bulk edits a set of poll questions in a tag."""
+
+		await interaction.response.defer()
+
+		if all(i == None for i in [show_question, show_options, show_voting]):
+			return await interaction.followup.send("You're not editing anything!")
+
+		guild_id = await self.fetchguildid(interaction)
+		tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
+		if tag is None:
+			return await interaction.followup.send("Please select an available tag.")
+
+		async def update(name, *values):
+			if not isinstance(name, list):
+				name = [name]
+			if len(name) != len(values):
+				raise Exception
+
+			txt = [f"{k} = ${i}" for k, i in zip(name, list(range(2, len(values) + 2)))]
+
+			await self.bot.db.execute(f"UPDATE polls SET {', '.join(txt)} WHERE tag = $1", tag['id'], *values)
+
+		names = []
+		values = []
+		def append(name, value):
+			names.append(name)
+			values.append(value)
+
+		txt = ["Updating polls:"]
+
+		if show_question is not None:
+			append("show_question", show_question)
+			txt.append(f"`show_question = {show_question}`")
+		if show_options is not None:
+			append("show_options", show_options)
+			txt.append(f"`show_options = {show_options}`")
+		if show_voting is not None:
+			append("show_voting", show_voting)
+			txt.append(f"`show_voting = {show_voting}`")
+		txt.append("")
+
+		await update(names, *values)
+
+
+		polls = await self.bot.db.fetch("SELECT * FROM polls WHERE tag = $1", tag['id'])
+
+		for poll in polls:
+			txt.append(f"- `{poll['id']}` {poll['question']}")
+		txt.append("")
+
+		msg = await interaction.followup.send("\n".join(txt + ["*Updating...*"]))
+
+		for poll in polls:
+			await self.updatepollmessage(poll)
+
+		# await msg.edit(content = "\n".join(txt + ["*Updated!*"]))
+
+	@pollbulkedit.autocomplete("tag")
+	async def pollbulkedit_autocomplete_tag(self, interaction: discord.Interaction, current: str):
+		return await self.autocomplete_tag(interaction, current)
+
+
+
+
 	@pollsadmingroup.command(name="sync")
-	@app_commands.describe(all_messages = "Update all messages, including inactive polls.")
+	@app_commands.describe(
+		include_ended = "Update all messages, including inactive polls.",
+		tag = "Tag to update."
+		)
 	@owner_only()
-	async def polladminsync(self, interaction: discord.Interaction, all_messages: bool = False):
+	async def polladminsync(self, interaction: discord.Interaction, include_ended: bool = False, 
+			tag: str = None):
 		"""Force sync all automated poll routines"""
 		await interaction.response.defer()
+
+		if tag:
+			guild_id = await self.fetchguildid(interaction)
+			tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
+			if tag is None:
+				return await interaction.followup.send("Please select an available tag.")
+			else: tag = tag['id']
+
 
 		print("~~~ Running SYNC ~~~")
 
@@ -2605,18 +2690,22 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 		async def update_votes():
-			polls = await self.bot.db.fetch("SELECT * FROM polls")
+			if not tag:
+				polls = await self.bot.db.fetch("SELECT * FROM polls")
+			else:
+				polls = await self.bot.db.fetch("SELECT * FROM polls WHERE tag = $1", tag)
 			pollids = [i['id'] for i in polls if i['published']]
 
 			votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
 			votepolls = {i['poll_id'] for i in votes}
 
-			for p in votepolls:
-				if p not in pollids:
-					await self.bot.db.execute("DELETE FROM pollvotes WHERE poll_id = $1", p)
+			if not tag:
+				for p in votepolls:
+					if p not in pollids:
+						await self.bot.db.execute("DELETE FROM pollvotes WHERE poll_id = $1", p)
 
-
-			votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
+				votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
+			
 			for poll in polls:
 				if not poll['active']: continue
 				v = [i['choice'] for i in votes if i['poll_id'] == poll['id']]
@@ -2628,8 +2717,9 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 		async def update_msg():
-			pollfilter = 'published' if all_messages else 'active'
+			pollfilter = 'published' if include_ended else 'active'
 			filtered = [i for i in polls if i[pollfilter]]
+			if tag: filtered = [i for i in polls if i['tag'] == tag]
 			filtered.sort(key = lambda x: discord.utils.utcnow() - x['time'])
 			filtered.sort(key = lambda x: not x['active'])
 			for poll in filtered:
@@ -2646,6 +2736,10 @@ class PollsCog(commands.Cog, name = "Polls"):
 
 
 		print("~~~ End SYNC ~~~")
+
+	@polladminsync.autocomplete("tag")
+	async def polladminsync_autocomplete_tag(self, interaction: discord.Interaction, current: str):
+		return await self.autocomplete_tag(interaction, current)
 
 
 
