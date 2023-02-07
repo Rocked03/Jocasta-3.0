@@ -21,6 +21,7 @@ class FunCog(Cog, name="Fun"):
         _log.error('Ignoring exception in command %r', interaction.command.name, exc_info=error)
 
     @app_commands.command(name="shrinktext")
+    @app_commands.describe(text="Text to shrink", show="Show shrunk text to everyone")
     async def shrinktext(self, interaction: discord.Interaction, text: str, show: bool = False):
         """Shrink your text!"""
         await interaction.response.send_message(text.translate(self.shrink), ephemeral=not show)
