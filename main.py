@@ -14,7 +14,9 @@ class Jocasta(commands.Bot):
 			'cogs.polls',
 			'cogs.time',
 			'cogs.news',
+			'cogs.fun',
 			'cogs.raidlog',
+			# 'cogs.betatesting'
 		]
 
 		for extension in initial_extensions:
