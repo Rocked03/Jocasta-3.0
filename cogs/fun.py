@@ -26,5 +26,6 @@ class FunCog(Cog, name="Fun"):
         """Shrink your text!"""
         await interaction.response.send_message(text.translate(self.shrink), ephemeral=not show)
 
+
 async def setup(bot):
     await bot.add_cog(FunCog(bot))
