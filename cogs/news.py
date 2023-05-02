@@ -72,6 +72,9 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
             if message.author.id == self.bot.user.id:
                 return
 
+            if message.author.id == 1098223523668951111:
+                return
+
             if message.flags.suppress_notifications:
                 return
 
@@ -88,6 +91,9 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
             if message.author.id == self.bot.user.id:
                 return
 
+            if message.author.id == 1098223523668951111:
+                return
+
             if message.flags.suppress_notifications:
                 return
 
@@ -96,6 +102,9 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
     async def send_news_ping(self, message):
         async with self.newslock:
             if (discord.utils.utcnow() - message.created_at).total_seconds() >= newspingbuffertime:
+                return
+
+            if message.author.id == 1098223523668951111:
                 return
 
             urlregex = "(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)"
