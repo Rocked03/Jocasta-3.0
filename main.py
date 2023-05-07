@@ -17,6 +17,7 @@ class Jocasta(commands.Bot):
             'cogs.fun',
             'cogs.raidlog',
             'cogs.emoji',
+            'cogs.modping',
             # 'cogs.betatesting'
         ]
 
