@@ -42,7 +42,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         for m_id in mcu['movies']:
             m = tmdb.Movies(m_id)
             i = m.info()
-            # print(i['original_title'])
+            print(i['original_title'])
             self.titles[m.id] = i['original_title']
             c = m.credits()
             projects[m.id] = c
@@ -50,7 +50,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         for tv_id in mcu['shows']:
             m = tmdb.TV(tv_id)
             i = m.info()
-            # print(i['name'])
+            print(i['name'])
             self.titles[m.id] = i['name']
             c = m.credits()
             projects[m.id] = c
@@ -71,6 +71,8 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
                 if m not in self.casts[id_]:
                     self.casts[id_][m] = []
                 self.casts[id_][m].append(p['job'])
+
+        print(self.titles)
 
         print("Successfully loaded casts.")
 
