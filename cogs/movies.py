@@ -42,7 +42,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         for m_id in mcu['movies']:
             m = tmdb.Movies(m_id)
             i = m.info()
-            print(i['original_title'])
+            # print(i['original_title'])
             self.titles[m.id] = i['original_title']
             c = m.credits()
             projects[m.id] = c
@@ -50,7 +50,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         for tv_id in mcu['shows']:
             m = tmdb.TV(tv_id)
             i = m.info()
-            print(i['name'])
+            # print(i['name'])
             self.titles[m.id] = i['name']
             c = m.credits()
             projects[m.id] = c
@@ -72,7 +72,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
                     self.casts[id_][m] = []
                 self.casts[id_][m].append(p['job'])
 
-        print(self.titles)
+        # print(self.titles)
 
         print("Successfully loaded casts.")
 
@@ -176,11 +176,12 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         info = await self.bot.loop.run_in_executor(None, project.info)
         name = info['name']
 
-        if await self.within(interaction, name, result['id']):
-            return
 
         creds = {'cast': [], 'crew': []}
         for p in info['parts']:
+            if await self.within(interaction, name, p['id']):
+                return
+
             c = await self.bot.loop.run_in_executor(None,
                                                     (await self.bot.loop.run_in_executor(None, tmdb.Movies,
                                                                                          p['id'])).credits)
