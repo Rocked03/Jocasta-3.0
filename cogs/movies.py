@@ -125,6 +125,8 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             current_txt += t + "\n"
         embeds.append(discord.Embed(description=current_txt.strip()))
 
+        embeds[-1].set_footer(text="Data sourced from TMDB.")
+
         return embeds
 
     @mcu_connections.command(name="movie")
