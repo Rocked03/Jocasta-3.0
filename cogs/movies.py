@@ -21,7 +21,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         self.bot.loop.create_task(self.schedule_load_casts())
 
     async def schedule_load_casts(self):
-        await self.bot.loop.run_in_executor(None, self.load_casts())
+        await self.bot.loop.run_in_executor(None, self.load_casts)
 
     def load_casts(self):
         print("Loading casts...")
