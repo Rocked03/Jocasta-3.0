@@ -138,7 +138,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
         response = await self.bot.loop.run_in_executor(None, partial(self.search.movie, query=movie))
         if not response['results']:
-            await interaction.followup.send(f"`{movie}` returned no results.")
+            return await interaction.followup.send(f"`{movie}` returned no results.")
 
         result = response['results'][0]
         try:
@@ -168,7 +168,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
         response = await self.bot.loop.run_in_executor(None, partial(self.search.tv, query=tv_show))
         if not response['results']:
-            await interaction.followup.send(f"`{tv_show}` returned no results.")
+            return await interaction.followup.send(f"`{tv_show}` returned no results.")
 
         result = response['results'][0]
         try:
@@ -198,7 +198,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
         response = await self.bot.loop.run_in_executor(None, partial(self.search.collection, query=collection))
         if not response['results']:
-            await interaction.followup.send(f"`{collection}` returned no results.")
+            return await interaction.followup.send(f"`{collection}` returned no results.")
 
         result = response['results'][0]
 
