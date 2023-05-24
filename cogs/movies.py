@@ -96,6 +96,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
     def most_common(self, lst):
         lst.sort(key=lambda x: not x.startswith('~'))
+        print(lst)
         return max(set(lst), key=lst.count)
 
     def find_match(self, cast, selector):
