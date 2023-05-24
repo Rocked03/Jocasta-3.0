@@ -115,7 +115,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
     @app_commands.describe(movie="Movie to search for.")
     async def mc_movie(self, interaction: discord.Interaction, movie: str):
         """Shared cast between MCU and a movie."""
-        if not self.loaded(interaction):
+        if not await self.loaded(interaction):
             return
 
         response = self.search.movie(query=movie)
@@ -126,7 +126,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         project = tmdb.Movies(result['id'])
         name = project.info()['original_title']
 
-        if not self.within(interaction, name, result['id']):
+        if not await self.within(interaction, name, result['id']):
             return
 
         creds = project.credits()
@@ -137,7 +137,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
     @app_commands.describe(tv_show="TV show to search for.")
     async def mc_tv(self, interaction: discord.Interaction, tv_show: str):
         """Shared cast between MCU and a TV show."""
-        if not self.loaded(interaction):
+        if not await self.loaded(interaction):
             return
 
         response = self.search.tv(query=tv_show)
@@ -148,7 +148,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         project = tmdb.TV(result['id'])
         name = project.info()['name']
 
-        if not self.within(interaction, name, result['id']):
+        if not await self.within(interaction, name, result['id']):
             return
 
         creds = project.credits()
@@ -159,7 +159,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
     @app_commands.describe(collection="Collection to search for.")
     async def mc_collection(self, interaction: discord.Interaction, collection: str):
         """Shared cast between MCU and a film collection."""
-        if not self.loaded(interaction):
+        if not await self.loaded(interaction):
             return
 
         response = self.search.collection(query=collection)
@@ -172,7 +172,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         info = project.info()
         name = info['name']
 
-        if not self.within(interaction, name, result['id']):
+        if not await self.within(interaction, name, result['id']):
             return
 
         creds = {'cast': [], 'crew': []}
