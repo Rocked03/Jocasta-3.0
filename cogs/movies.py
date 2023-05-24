@@ -96,7 +96,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         return max(set(lst), key=lst.count)
 
     def find_match(self, cast, selector):
-        mcu = self.casts[str(cast['id'])]
+        mcu = self.casts[cast['id']]
         roles = {k: vv for k, v in mcu.items() for vv in v}
         role_in_mcu = self.most_common(list(roles.values()))
         title = self.titles[next(k for k, v in roles.items() if v == role_in_mcu)]
@@ -107,7 +107,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         matched = {}
 
         for c in creds['cast']:
-            if c['id'] not in matched and str(c['id']) in self.casts:
+            if c['id'] not in matched and c['id'] in self.casts:
                 matched[c['id']] = self.find_match(c, 'character')
 
         txt = [f"## MCU Connections: *{name}*"] + list(matched.values())
