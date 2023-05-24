@@ -177,7 +177,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             return await interaction.followup.send(f"API Request Failed.")
 
         await self.bot.loop.run_in_executor(None, project.info)
-        name = f"{project.name} ({project.release_date.split('-')[0]})"
+        name = f"{project.name} ({project.first_air_date.split('-')[0]})"
 
         if await self.within(interaction, name, result['id']):
             return
