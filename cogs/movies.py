@@ -96,15 +96,13 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
     def most_common(self, lst):
         lst.sort(key=lambda x: not x.startswith('~'))
-        print(lst)
         return max(set(lst), key=lst.count)
 
     def find_match(self, cast, selector):
         mcu = self.casts[cast['id']]
-        print(mcu)
-        roles = {k: vv for k, v in mcu.items() for vv in v}
-        role_in_mcu = self.most_common(list(roles.values()))
-        title = self.titles[next(k for k, v in roles.items() if v == role_in_mcu)]
+        roles = [vv for k, v in mcu.items() for vv in v]
+        role_in_mcu = self.most_common(roles)
+        title = self.titles[next(k for k, v in mcu.items() if role_in_mcu in v)]
         role_in_mcu = role_in_mcu.strip("~")
         return f"- **{cast['name']}** - {cast[selector]} ~~\\|\\|~~ {role_in_mcu} ({title}{f', {len(mcu) - 1} more' if len(mcu) > 1 else ''})"
 
@@ -118,11 +116,13 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         txt = [f"## MCU Connections: *{name}*"] + list(matched.values())
         if not matched:
             txt.append("No cast connections found.")
+        else:
+            txt.append(f"Total = **{len(matched)}** matches.")
 
         embeds = []
         current_txt = ""
         for t in txt:
-            if len(current_txt) + len(t) > 2000:
+            if len(current_txt) + len(t) > 4000:
                 embeds.append(discord.Embed(description=current_txt.strip()))
                 current_txt = ""
             current_txt += t + "\n"
