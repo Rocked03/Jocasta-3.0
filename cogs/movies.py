@@ -125,7 +125,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             current_txt += t + "\n"
         embeds.append(discord.Embed(description=current_txt.strip()))
 
-        embeds[-1].set_footer(text="Data sourced from TMDB.")
+        embeds[-1].set_footer(text="Data sourced from TMDB. (Casting is sometimes incomplete on TV shows)")
 
         return embeds
 
