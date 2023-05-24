@@ -3,6 +3,8 @@ from functools import partial
 import discord
 from discord import *
 from discord.ext import commands
+from requests import HTTPError
+
 from config import *
 
 import tmdbsimple as tmdb
@@ -114,7 +116,16 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         if not matched:
             txt.append("No cast connections found.")
 
-        return discord.Embed(description='\n'.join(txt))
+        embeds = []
+        current_txt = ""
+        for t in txt:
+            if len(current_txt) + len(t) > 2000:
+                embeds.append(discord.Embed(description=current_txt.strip()))
+                current_txt = ""
+            current_txt += t + "\n"
+        embeds.append(discord.Embed(description=current_txt.strip()))
+
+        return embeds
 
     @mcu_connections.command(name="movie")
     @app_commands.describe(movie="Movie to search for.")
@@ -128,7 +139,10 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             await interaction.followup.send(f"`{movie}` returned no results.")
 
         result = response['results'][0]
-        project = await self.bot.loop.run_in_executor(None, tmdb.Movies, result['id'])
+        try:
+            project = await self.bot.loop.run_in_executor(None, tmdb.Movies, result['id'])
+        except HTTPError:
+            return await interaction.followup.send(f"API Request Failed.")
         name = (await self.bot.loop.run_in_executor(None, project.info))['original_title']
 
         if await self.within(interaction, name, result['id']):
@@ -137,7 +151,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         creds = await self.bot.loop.run_in_executor(None, project.credits)
 
         try:
-            await interaction.followup.send(embed=self.connections(name, creds))
+            await interaction.followup.send(embeds=self.connections(name, creds))
         except HTTPException:
             await interaction.followup.send("... the list is too long")
 
@@ -153,7 +167,10 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             await interaction.followup.send(f"`{tv_show}` returned no results.")
 
         result = response['results'][0]
-        project = await self.bot.loop.run_in_executor(None, tmdb.TV, result['id'])
+        try:
+            project = await self.bot.loop.run_in_executor(None, tmdb.TV, result['id'])
+        except HTTPError:
+            return await interaction.followup.send(f"API Request Failed.")
         name = (await self.bot.loop.run_in_executor(None, project.info))['name']
 
         if await self.within(interaction, name, result['id']):
@@ -162,7 +179,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         creds = await self.bot.loop.run_in_executor(None, project.credits)
 
         try:
-            await interaction.followup.send(embed=self.connections(name, creds))
+            await interaction.followup.send(embeds=self.connections(name, creds))
         except HTTPException:
             await interaction.followup.send("... the list is too long")
 
@@ -179,7 +196,10 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
         result = response['results'][0]
 
-        project = await self.bot.loop.run_in_executor(None, tmdb.Collections, result['id'])
+        try:
+            project = await self.bot.loop.run_in_executor(None, tmdb.Collections, result['id'])
+        except HTTPError:
+            return await interaction.followup.send(f"API Request Failed.")
         info = await self.bot.loop.run_in_executor(None, project.info)
         name = info['name']
 
@@ -197,7 +217,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         creds['cast'].sort(key=lambda x: x['order'])
 
         try:
-           await interaction.followup.send(embed=self.connections(name, creds))
+           await interaction.followup.send(embeds=self.connections(name, creds))
         except HTTPException:
             await interaction.followup.send("... the list is too long")
 
