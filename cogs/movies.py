@@ -89,7 +89,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
     async def within(self, interaction, name, id_):
         if id_ in self.titles:
-            await interaction.response.send_message(f"`{name}` is in the MCU!")
+            await interaction.followup.send(f"`{name}` is in the MCU!")
         return id_ in self.casts
 
     def most_common(self, lst):
