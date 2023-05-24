@@ -143,7 +143,9 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             project = await self.bot.loop.run_in_executor(None, tmdb.Movies, result['id'])
         except HTTPError:
             return await interaction.followup.send(f"API Request Failed.")
-        name = (await self.bot.loop.run_in_executor(None, project.info))['original_title']
+
+        await self.bot.loop.run_in_executor(None, project.info)
+        name = f"{project.original_title} ({project.release_date.split('-')[0]})"
 
         if await self.within(interaction, name, result['id']):
             return
@@ -171,7 +173,9 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             project = await self.bot.loop.run_in_executor(None, tmdb.TV, result['id'])
         except HTTPError:
             return await interaction.followup.send(f"API Request Failed.")
-        name = (await self.bot.loop.run_in_executor(None, project.info))['name']
+
+        await self.bot.loop.run_in_executor(None, project.info)
+        name = f"{project.name} ({project.release_date.split('-')[0]})"
 
         if await self.within(interaction, name, result['id']):
             return
@@ -200,12 +204,13 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             project = await self.bot.loop.run_in_executor(None, tmdb.Collections, result['id'])
         except HTTPError:
             return await interaction.followup.send(f"API Request Failed.")
-        info = await self.bot.loop.run_in_executor(None, project.info)
-        name = info['name']
+
+        await self.bot.loop.run_in_executor(None, project.info)
+        name = project.name
 
 
         creds = {'cast': [], 'crew': []}
-        for p in info['parts']:
+        for p in project.parts:
             if await self.within(interaction, name, p['id']):
                 return
 
