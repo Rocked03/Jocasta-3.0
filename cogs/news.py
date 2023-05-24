@@ -1,4 +1,4 @@
-import asyncio, datetime, discord, re
+import asyncio, discord, re
 from discord import *
 from discord.app_commands import *
 from discord.app_commands.tree import _log

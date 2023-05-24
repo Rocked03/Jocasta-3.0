@@ -963,7 +963,7 @@ class PollsCog(commands.Cog, name="Polls"):
                                 latest.remove(message_id)
                                 break
                     if change:
-                        await self.bot.db.execute("UPDATE pollstags SET  end_message_latest_ids = $2 WHERE id = $1",
+                        await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1",
                                                   t['id'], latest)
 
             await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1", tag['id'],

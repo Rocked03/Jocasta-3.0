@@ -9,7 +9,7 @@ import datetime
 class Jocasta(commands.Bot):
     async def setup_hook(self):
         initial_extensions = [
-            'funcs.postgresql',
+            # 'funcs.postgresql',
             'cogs.owner',
             'cogs.polls',
             'cogs.time',
@@ -18,6 +18,7 @@ class Jocasta(commands.Bot):
             'cogs.raidlog',
             'cogs.emoji',
             'cogs.modping',
+            'cogs.movies',
             # 'cogs.betatesting'
         ]
 
@@ -27,11 +28,12 @@ class Jocasta(commands.Bot):
 
 intents = discord.Intents.all()
 
-description = "Jocasta 3.1.1"
+description = "Jocasta 3.1.2"
 """
 3.0.0.0 - Original
 3.1.0.x - Polls
 3.1.1.x - Emoji rewrite
+3.1.2.x - MCU Connections
 """
 get_pre = lambda bot, message: BOT_PREFIX
 bot = Jocasta(command_prefix=get_pre, description=description, intents=intents)
