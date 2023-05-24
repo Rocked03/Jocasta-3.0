@@ -23,9 +23,10 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         self.bot.loop.create_task(self.schedule_load_casts())
 
     async def schedule_load_casts(self):
-        await self.bot.loop.run_in_executor(None, self.load_casts)
+        # await self.bot.loop.run_in_executor(None, self.load_casts)
+        await self.load_casts()
 
-    def load_casts(self):
+    async def load_casts(self):
         print("Loading casts...")
 
         mcu = {'movies': [1726, 1724, 10138, 10195, 1771, 24428, 68721, 76338, 100402, 118340, 102899, 99861, 271110,
@@ -40,19 +41,19 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         projects = {}
 
         for m_id in mcu['movies']:
-            m = tmdb.Movies(m_id)
-            i = m.info()
+            m = await self.bot.loop.run_in_executor(None, tmdb.Movies, m_id)
+            i = await self.bot.loop.run_in_executor(None, m.info)
             # print(i['original_title'])
             self.titles[m.id] = i['original_title']
-            c = m.credits()
+            c = await self.bot.loop.run_in_executor(None, m.credits)
             projects[m.id] = c
 
         for tv_id in mcu['shows']:
-            m = tmdb.TV(tv_id)
-            i = m.info()
+            m = await self.bot.loop.run_in_executor(None, tmdb.TV, tv_id)
+            i = await self.bot.loop.run_in_executor(None, m.info)
             # print(i['name'])
             self.titles[m.id] = i['name']
-            c = m.credits()
+            c = await self.bot.loop.run_in_executor(None, m.credits)
             projects[m.id] = c
 
         for m, c in projects.items():
@@ -73,7 +74,6 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
                 self.casts[id_][m].append(p['job'])
 
         # print(self.titles)
-
         print("Successfully loaded casts.")
 
     mcu_connections = app_commands.Group(name="mcu-connections", description="See crossover cast to the MCU!")
@@ -90,7 +90,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
     async def within(self, interaction, name, id_):
         if id_ in self.titles:
             await interaction.followup.send(f"`{name}` is in the MCU!")
-        return id_ in self.casts
+        return id_ in self.titles
 
     def most_common(self, lst):
         return max(set(lst), key=lst.count)
