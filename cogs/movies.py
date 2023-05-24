@@ -101,6 +101,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
     def find_match(self, cast, selector):
         mcu = self.casts[cast['id']]
+        print(mcu)
         roles = {k: vv for k, v in mcu.items() for vv in v}
         role_in_mcu = self.most_common(list(roles.values()))
         title = self.titles[next(k for k, v in roles.items() if v == role_in_mcu)]
