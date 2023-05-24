@@ -1,3 +1,5 @@
+from functools import partial
+
 import discord
 from discord import *
 from discord.ext import commands
@@ -118,18 +120,18 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         if not await self.loaded(interaction):
             return
 
-        response = self.search.movie(query=movie)
+        response = await self.bot.loop.run_in_executor(None, partial(self.search.movie, query=movie))
         if not response['results']:
             await interaction.followup.send(f"`{movie}` returned no results.")
 
         result = response['results'][0]
-        project = tmdb.Movies(result['id'])
-        name = project.info()['original_title']
+        project = await self.bot.loop.run_in_executor(None, tmdb.Movies, result['id'])
+        name = (await self.bot.loop.run_in_executor(None, project.info))['original_title']
 
-        if not await self.within(interaction, name, result['id']):
+        if await self.within(interaction, name, result['id']):
             return
 
-        creds = project.credits()
+        creds = await self.bot.loop.run_in_executor(None, project.credits)
 
         await interaction.followup.send(self.connections(name, creds))
 
@@ -140,18 +142,18 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         if not await self.loaded(interaction):
             return
 
-        response = self.search.tv(query=tv_show)
+        response = await self.bot.loop.run_in_executor(None, partial(self.search.tv, query=tv_show))
         if not response['results']:
             await interaction.followup.send(f"`{tv_show}` returned no results.")
 
         result = response['results'][0]
-        project = tmdb.TV(result['id'])
-        name = project.info()['name']
+        project = await self.bot.loop.run_in_executor(None, tmdb.TV, result['id'])
+        name = (await self.bot.loop.run_in_executor(None, project.info))['name']
 
-        if not await self.within(interaction, name, result['id']):
+        if await self.within(interaction, name, result['id']):
             return
 
-        creds = project.credits()
+        creds = await self.bot.loop.run_in_executor(None, project.credits)
 
         await interaction.followup.send(self.connections(name, creds))
 
@@ -162,22 +164,24 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         if not await self.loaded(interaction):
             return
 
-        response = self.search.collection(query=collection)
+        response = await self.bot.loop.run_in_executor(None, partial(self.search.collection, query=collection))
         if not response['results']:
             await interaction.followup.send(f"`{collection}` returned no results.")
 
         result = response['results'][0]
 
-        project = tmdb.Collections(result['id'])
-        info = project.info()
+        project = await self.bot.loop.run_in_executor(None, tmdb.Collections, result['id'])
+        info = await self.bot.loop.run_in_executor(None, project.info)
         name = info['name']
 
-        if not await self.within(interaction, name, result['id']):
+        if await self.within(interaction, name, result['id']):
             return
 
         creds = {'cast': [], 'crew': []}
         for p in info['parts']:
-            c = tmdb.Movies(p['id']).credits()
+            c = await self.bot.loop.run_in_executor(None,
+                                                    (await self.bot.loop.run_in_executor(None, tmdb.Movies,
+                                                                                         p['id'])).credits)
             creds['cast'] += c['cast']
             creds['crew'] += c['crew']
         creds['cast'].sort(key=lambda x: x['order'])
