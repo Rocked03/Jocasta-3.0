@@ -113,7 +113,8 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         txt = [f"## MCU Connections: *{name}*"] + list(matched.values())
         if not matched:
             txt.append("No cast connections found.")
-        return '\n'.join(txt)
+
+        return discord.Embed(description='\n'.join(txt))
 
     @mcu_connections.command(name="movie")
     @app_commands.describe(movie="Movie to search for.")
@@ -135,7 +136,10 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
         creds = await self.bot.loop.run_in_executor(None, project.credits)
 
-        await interaction.followup.send(self.connections(name, creds))
+        try:
+            await interaction.followup.send(embed=self.connections(name, creds))
+        except HTTPException:
+            await interaction.followup.send("... the list is too long")
 
     @mcu_connections.command(name="tv")
     @app_commands.describe(tv_show="TV show to search for.")
@@ -157,7 +161,10 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
         creds = await self.bot.loop.run_in_executor(None, project.credits)
 
-        await interaction.followup.send(self.connections(name, creds))
+        try:
+            await interaction.followup.send(embed=self.connections(name, creds))
+        except HTTPException:
+            await interaction.followup.send("... the list is too long")
 
     @mcu_connections.command(name="collection")
     @app_commands.describe(collection="Collection to search for.")
@@ -189,7 +196,10 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             creds['crew'] += c['crew']
         creds['cast'].sort(key=lambda x: x['order'])
 
-        await interaction.followup.send(self.connections(name, creds))
+        try:
+           await interaction.followup.send(embed=self.connections(name, creds))
+        except HTTPException:
+            await interaction.followup.send("... the list is too long")
 
 
 async def setup(bot):
