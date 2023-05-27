@@ -1012,7 +1012,7 @@ class PollsCog(commands.Cog, name="Polls"):
                         if thread is None:
                             continue
                         else:
-                            await thread.edit(archived=True, locked=True)
+                            await thread.edit(archived=True, locked=lock_thread)
                             break
         except Exception as e:
             traceback.print_exc()
@@ -1140,6 +1140,7 @@ class PollsCog(commands.Cog, name="Polls"):
         msg = await channel.fetch_message(poll['message_id'])
 
         if not force and txt['content'] == msg.content and msg.embeds and msg.embeds[0] == txt['embed']:
+            print(force, txt['content'] == msg.content, bool(msg.embeds), msg.embeds[0] == txt['embed'])
             return
 
         if msg.author.id == self.bot.user.id:
