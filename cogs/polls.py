@@ -831,6 +831,8 @@ class PollsCog(commands.Cog, name="Polls"):
         return await self.startpolls([poll_id], **kwargs)
 
     async def startpolls(self, poll_ids: list, *, set_time=None, natural=False):
+        await self.bot.wait_until_ready()
+
         if not isinstance(poll_ids, list):
             poll_ids = [poll_ids]
 
