@@ -119,8 +119,8 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
 
             titles = {i for i in titles if i and not any(j.startswith(i.strip('...')) and j != i for j in titles if j)}
 
-            if len(re.findall(urlregex, message.content)) != len(message.embeds):
-                return
+            # if len(re.findall(urlregex, message.content)) != len(message.embeds):
+            #     return
 
             channel = message.channel
 
