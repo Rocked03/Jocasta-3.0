@@ -6,7 +6,7 @@ from discord.ext import commands
 from config import *
 
 # url_regex = "(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)"
-url_regex = "(https?:\/\/)([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w\.-]*)(#?[\/\w\.\-\&\=\%]*)?"
+url_regex = "(https?:\/\/)([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w\.\-\?]*)(#?[\/\w\.\-\&\=\%\?]*)?"
 
 
 class EmbedCog(commands.Cog):
