@@ -19,6 +19,7 @@ class Jocasta(commands.Bot):
             'cogs.emoji',
             'cogs.modping',
             'cogs.movies',
+            'cogs.embed',
             # 'cogs.betatesting'
         ]
 
