@@ -37,7 +37,7 @@ description = "Jocasta 3.1.2"
 3.1.2.x - MCU Connections
 """
 get_pre = lambda bot, message: BOT_PREFIX
-bot = Jocasta(command_prefix=get_pre, description=description, intents=intents, max_messages=None)
+bot = Jocasta(command_prefix=get_pre, description=description, intents=intents, max_messages=16)
 
 bot.recentcog = None
 
