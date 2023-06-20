@@ -104,6 +104,9 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
             if (discord.utils.utcnow() - message.created_at).total_seconds() >= newspingbuffertime:
                 return
 
+            if message.author.id == self.bot.user.id:
+                return
+
             if message.author.id == 1098223523668951111:
                 return
 
