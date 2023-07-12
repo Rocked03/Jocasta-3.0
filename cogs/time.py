@@ -276,7 +276,7 @@ class TimeCog(discord.ext.commands.Cog, name = "Time"):
 				continue
 
 		def tzsearch(abb, time = None):
-			abb = abb.lower()
+			abb = abb.lower().replace("utc", "").rstrip("0")
 			dsts = [abb, abb.replace("st", "dt"), abb.replace("dt", "st")]
 			if abb.endswith('t'): dsts += [abb[:-1] + i for i in ['dt', 'st']]
 			if time is None: time = datetime.datetime.now()
