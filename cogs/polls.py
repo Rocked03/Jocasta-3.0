@@ -2865,6 +2865,7 @@ class PollsCog(commands.Cog, name="Polls"):
             timestamp=discord.utils.utcnow(),
             colour=colour
         )
+        embed.set_footer(text=tag_id)
 
         view = self.Confirm()
 
