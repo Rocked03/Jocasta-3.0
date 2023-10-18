@@ -16,8 +16,8 @@ class EmojiCog(commands.Cog, name="Emoji"):
         self.bot = bot
 
         self.bot.emojiids = [484510768293740577, 484506523809349633, 409904350530371587, 567907688261091343,
-                             764798367539920946, 808924000100548648, 854307913580937236, 897260541138075669,
-                             854698557406838784, 764739176733474877, 920268012563623936]
+                             1164012436895055912, 764798367539920946, 808924000100548648, 854307913580937236,
+                             897260541138075669, 854698557406838784, 764739176733474877, 920268012563623936]
 
     """
     /emoji list
@@ -90,7 +90,7 @@ class EmojiCog(commands.Cog, name="Emoji"):
             await info.purge(limit=100)
 
             invites = ['https://discord.gg/wpFbuE9', 'https://discord.gg/cBbyQRs', 'https://discord.gg/qg3JxhR',
-                       'https://discord.gg/gHbZJkY', 'https://discord.gg/uTgPHK5', 'https://discord.gg/RWEkNcGthX',
+                       'https://discord.gg/gHbZJkY', 'https://discord.gg/mZ4eScyPpy', 'https://discord.gg/uTgPHK5', 'https://discord.gg/RWEkNcGthX',
                        'https://discord.gg/XYnCxUsEeu', 'https://discord.gg/e39cCVBP5X',
                        'https://discord.gg/w3McMTwNQe', 'https://discord.gg/pJHyQd8', 'https://discord.gg/ApZhV3vV8D']
             # invitestr = '\n'.join(f" - {x}" for x in invites)
