@@ -106,20 +106,20 @@ class EmojiCog(commands.Cog, name="Emoji"):
                 'Join the **Marvel Discord** - https://discord.gg/marvel',
                 'Join the Black Panther font server - <https://discord.gg/h6FQUbJ>',
                 'I recommend checking out 100soft\'s own server! - https://discord.gg/100soft',
-                'These emojis can only be used with **Discord Nitro**. Read more about Discord Nitro at <https://discordapp.com/nitro/>',
+                'These emojis can only be used with **Discord Nitro**. [Read more about Discord Nitro](<https://discordapp.com/nitro/>)',
             ]
             infomsg = await info.send('\n'.join(msg))
 
             for msg in aemsg: await info.send(msg)
 
             # await info.send(f"(Scroll to the top of the channel to see all the server invites!)")
-            await info.send(f"[Jump to the top]({infomsg.jump_url})")
+            await info.send(f">> [Jump to the top!]({infomsg.jump_url}) <<")
 
             if serverid == self.bot.emojiids[0]:
                 allemoji = discord.utils.get(server.text_channels, name="all-emoji")
                 await allemoji.purge(limit=100)
                 for n, sid in enumerate(self.bot.emojiids):
-                    await allemoji.send(f"**__{self.bot.get_guild(sid).name}__**  -  {invites[n]}")
+                    await allemoji.send(f"# {self.bot.get_guild(sid).name}\n{invites[n]}")
                     for msg in (await self.allemojis([sid]))[0]: await allemoji.send(msg)
                     await allemoji.send(f"------------------------------------------------")
 
