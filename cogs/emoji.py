@@ -108,11 +108,12 @@ class EmojiCog(commands.Cog, name="Emoji"):
                 'I recommend checking out 100soft\'s own server! - https://discord.gg/100soft',
                 'These emojis can only be used with **Discord Nitro**. Read more about Discord Nitro at <https://discordapp.com/nitro/>',
             ]
-            await info.send('\n'.join(msg))
+            infomsg = await info.send('\n'.join(msg))
 
             for msg in aemsg: await info.send(msg)
 
-            await info.send(f"(Scroll to the top of the channel to see all the server invites!)")
+            # await info.send(f"(Scroll to the top of the channel to see all the server invites!)")
+            await info.send(f"[Jump to the top]({infomsg.jump_url})")
 
             if serverid == self.bot.emojiids[0]:
                 allemoji = discord.utils.get(server.text_channels, name="all-emoji")
