@@ -270,7 +270,7 @@ class PollsCog(commands.Cog, name="Polls"):
     async def fetchpoll(self, poll_id: int):
         return await self.bot.db.fetchrow(
             "SELECT * FROM "
-            "(polls LEFT JOIN pollsinfo ON polls.guild_id = pollsinfo.guild_id) LEFT JOIN pollstags ON polls.tag = pollstags.tag "
+            "polls NATURAL LEFT JOIN pollsinfo NATURAL LEFT JOIN pollstags "
             "WHERE polls.id = $1"
             , poll_id)
 
@@ -566,19 +566,18 @@ class PollsCog(commands.Cog, name="Polls"):
                 else:
                     embed.add_field(name="Voting", value='\n'.join(txt))
 
-        name = ""
-        value = ""
-        if poll['duration'] and poll['published']:
+        name = None
+        value = None
+        if poll['duration'] and poll['published'] and not poll['persistent']:
             end_time = poll['time'] + poll['duration']
             if poll['active']:
                 name = "Poll ends"
             else:
                 name = "Poll finished"
             value = "<t:{0}:R>\n".format(int(end_time.timestamp()))
-        elif poll['active']:
-            name = "The poll is currently open for voting!"
-            if not showextra:
-                value = "Vote now!"
+
+        if name and value:
+            embed.add_field(name=name, value=value)
 
         if showextra and poll['published']:
             try:
@@ -611,8 +610,6 @@ class PollsCog(commands.Cog, name="Polls"):
             except NotFound:
                 pass
 
-        if name and value:
-            embed.add_field(name=name, value=value)
 
         if poll['thread_question'] and (not showextra or poll['active']):
             threadq = self.defaultthreadmsg(poll['thread_question'])
@@ -1127,7 +1124,7 @@ class PollsCog(commands.Cog, name="Polls"):
     async def formatpollmessage(self, poll):
         content = None
         embed = await self.pollquestionembed(poll)
-        view = await self.poll_buttons_id(poll['id'], active=poll['active'])
+        view = await self.poll_buttons_id(poll['id'], active=(poll['active'] or poll['persistent']) and poll['published'])
 
         return {
             "content": content,
@@ -1208,6 +1205,8 @@ class PollsCog(commands.Cog, name="Polls"):
         def __init__(self, client, poll, *, active=True):
             super().__init__(timeout=None)
 
+            self.active = active
+
             if active:
                 if len(poll['choices']) <= 4:
                     for c, n in zip(poll['choices'], range(len(poll['choices']))):
@@ -1248,7 +1247,7 @@ class PollsCog(commands.Cog, name="Polls"):
 
             poll = await client.fetchpoll(poll['id'])
 
-            if poll['active']:
+            if self.active:
                 await client.vote(poll, interaction.user, value)
                 qid = f"*{poll['question']}* ({poll['id']})" if poll['show_question'] else f"`{poll['id']}`"
 
@@ -1335,19 +1334,19 @@ class PollsCog(commands.Cog, name="Polls"):
         return self.PollView(self, poll, **kwargs)
 
     async def on_startup_buttons(self):
-        polls = await self.bot.db.fetch("SELECT * FROM polls WHERE published = $1", True)
+        polls = await self.bot.db.fetch("SELECT * FROM polls NATURAL LEFT JOIN pollstags WHERE published = $1", True)
         polls.sort(key=lambda x: discord.utils.utcnow() - x['time'])
         polls.sort(key=lambda x: not x['active'])
 
         for poll in polls:
-            view = await self.poll_buttons(poll, active=poll['active'])
+            view = await self.poll_buttons(poll, active=(poll['active'] or poll['persistent']) and poll['published'])
             self.bot.add_view(view)
 
     async def vote(self, poll, user, choice=None):
         vote = await self.bot.db.fetchrow("SELECT * FROM pollsvotes WHERE user_id = $1 AND poll_id = $2", user.id,
                                           poll['id'])
 
-        if poll['active'] and choice is not None:
+        if (poll['active'] or poll['persistent']) and poll['published'] and choice is not None:
             if choice == -1:
                 await self.bot.db.execute("DELETE FROM pollsvotes WHERE user_id = $1 AND poll_id = $2", user.id,
                                           poll['id'])
@@ -2543,10 +2542,13 @@ class PollsCog(commands.Cog, name="Polls"):
 
 
             else:
-                polls = await self.bot.db.fetch("SELECT * FROM polls WHERE active = $1", True)
+                polls = await self.bot.db.fetch(
+                    "SELECT * FROM "
+                    "polls NATURAL LEFT JOIN pollsinfo NATURAL LEFT JOIN pollstags "
+                    "WHERE (active = $1 or persistent = $1) and published = $1", True)
                 polls = [i for i in polls if
                          i['id'] not in votes.keys() and await self.canview(i, interaction.guild_id)]
-                polls = self.sortpolls(polls, self.Sort.oldest)
+                polls = self.sortpolls(polls, self.Sort.newest)
 
                 entries = polls
 
@@ -2564,12 +2566,9 @@ class PollsCog(commands.Cog, name="Polls"):
                         embed = discord.Embed(title=f"{self.user.name}'s Polls", colour=self.colour,
                                               timestamp=discord.utils.utcnow())
                         for p in entries:
-                            guild = await self.client.fetchguildinfo(p['guild_id'])
                             tag = await self.client.fetchtag(p['tag'])
                             if interaction.guild_id == p['guild_id']:
-                                # message = await self.client.bot.get_channel(
-                                #     self.client.fetchchannelid(guild, tag)).fetch_message(p['message_id'])
-                                message = await self.client.bot.fetchpollmsg(p)
+                                message = await self.client.fetchpollmsg(p)
                             else:
                                 i = tag['crosspost_servers'].index(interaction.guild_id)
                                 message = await self.client.bot.get_channel(tag['crosspost_channels'][i]).fetch_message(
@@ -2781,7 +2780,7 @@ class PollsCog(commands.Cog, name="Polls"):
             if not tag:
                 for p in votepolls:
                     if p not in pollids:
-                        await self.bot.db.execute("DELETE FROM pollvotes WHERE poll_id = $1", p)
+                        await self.bot.db.execute("DELETE FROM pollsvotes WHERE poll_id = $1", p)
 
                 votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
 
