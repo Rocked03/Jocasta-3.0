@@ -266,17 +266,14 @@ class PollsCog(commands.Cog, name="Polls"):
 
     async def fetchpoll(self, poll_id: int):
         return await self.bot.db.fetchrow(
-            "SELECT * FROM "
-            "(polls LEFT JOIN pollsinfo ON polls.guild_id = pollsinfo.guild_id) "
-            "LEFT JOIN pollstags ON polls.tag = pollstags.id "
-            "WHERE polls.id = $1"
+            "SELECT * FROM (polls LEFT JOIN pollsinfo ON polls.guild_id = pollsinfo.guild_id) LEFT JOIN pollstags ON polls.tag = pollstags.tag WHERE polls.id = $1"
             , poll_id)
 
     async def fetchpollmsg(self, poll):
         return await (
             self.bot.get_channel(
                 poll['channel_id'] if not poll['fallback'] else poll['fallback_channel_id']
-            ).fetch_message(poll['message_id']))
+            )).fetch_message(poll['message_id'])
 
     async def fetchguildinfo(self, guildid: int):
         return await self.bot.db.fetchrow("SELECT * FROM pollsinfo WHERE guild_id = $1", guildid)
@@ -285,7 +282,7 @@ class PollsCog(commands.Cog, name="Polls"):
         return await self.bot.db.fetchrow("SELECT * FROM pollsinfo WHERE manage_channel_id && $1", [channelid])
 
     async def fetchtag(self, tagid: int):
-        return await self.bot.db.fetchrow("SELECT * FROM pollstags WHERE id = $1", tagid) if tagid else None
+        return await self.bot.db.fetchrow("SELECT * FROM pollstags WHERE tag = $1", tagid) if tagid else None
 
     async def fetchtagsbyguildid(self, guildid: int):
         return await self.bot.db.fetch("SELECT * FROM pollstags WHERE guild_id = $1", guildid)
@@ -830,7 +827,7 @@ class PollsCog(commands.Cog, name="Polls"):
         for poll_id in poll_ids:
             poll = await self.fetchpoll(poll_id)
             tag = await self.fetchtag(poll['tag'])
-            tid = None if not tag else tag['id']
+            tid = None if not tag else tag['tag']
             if tid in polls.keys():
                 polls[tid].append(poll_id)
             else:
@@ -854,7 +851,7 @@ class PollsCog(commands.Cog, name="Polls"):
             tag = await self.fetchtag(poll['tag'])
             polls.append([poll, tag])
 
-        tags = [tag['id'] if tag else None for poll, tag in polls]
+        tags = [tag['tag'] if tag else None for poll, tag in polls]
         if not tags.count(tags[0]) == len(tags):
             print("Can't bulk-start polls with different tags!")
             return None
@@ -868,7 +865,7 @@ class PollsCog(commands.Cog, name="Polls"):
             if tag:
                 if tag['num']:
                     num = (await self.fetchtag(poll['tag']))['num']
-                    await self.bot.db.execute("UPDATE pollstags SET num = $2 WHERE id = $1", tag['id'], num + 1)
+                    await self.bot.db.execute("UPDATE pollstags SET num = $2 WHERE id = $1", tag['tag'], num + 1)
 
             votes = [0 for i in range(len(poll['choices']))]
 
@@ -933,7 +930,7 @@ class PollsCog(commands.Cog, name="Polls"):
                 view = self.SelfAssignRoleView(tag['end_message_role_ids'])
 
             txt['embed'] = discord.Embed(description=tag['end_message'],
-                                         colour=await self.fetchcolourbyid(guild['guild_id'], tag['id']))
+                                         colour=await self.fetchcolourbyid(guild['guild_id'], tag['tag']))
 
             def getroles(channel):
                 roles = []
@@ -959,7 +956,7 @@ class PollsCog(commands.Cog, name="Polls"):
                 channels = [tag['channel_id']] + tag['crosspost_channels']
                 endmsgtags += [i for i in alltags if
                                (i['channel_id'] in channels or any(j in channels for j in i['crosspost_channels'])) and
-                               i['id'] != tag['id']]
+                               i['id'] != tag['tag']]
 
             for t in endmsgtags:
                 if t['end_message_latest_ids']:
@@ -980,7 +977,7 @@ class PollsCog(commands.Cog, name="Polls"):
                         await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1",
                                                   t['id'], latest)
 
-            await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1", tag['id'],
+            await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1", tag['tag'],
                                       [m.id for m in endmsgs])
 
         for poll, t in polls:
@@ -1314,7 +1311,7 @@ class PollsCog(commands.Cog, name="Polls"):
 
     async def poll_buttons_id(self, poll_id, **kwargs):
         poll = await self.fetchpoll(poll_id)
-        return self.poll_buttons(poll, **kwargs)
+        return await self.poll_buttons(poll, **kwargs)
 
     async def poll_buttons(self, poll, **kwargs):
         return self.PollView(self, poll, **kwargs)
@@ -1616,7 +1613,7 @@ class PollsCog(commands.Cog, name="Polls"):
             tag = await self.validtag(tag, lambda x: x['guild_id'] == guild_id)
             if tag is None:
                 return await interaction.followup.send("Please select an available tag.")
-            tag = tag['id']
+            tag = tag['tag']
 
         while True:
             poll_id = random.randint(10000, 99999)
@@ -1874,7 +1871,7 @@ class PollsCog(commands.Cog, name="Polls"):
             if tag is None:
                 return await interaction.followup.send("Please select an available tag.")
             else:
-                tag = tag['id']
+                tag = tag['tag']
 
         if all(i is None for i in
                [question, description, thread_question, image, opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_7, opt_8]):
@@ -2374,7 +2371,7 @@ class PollsCog(commands.Cog, name="Polls"):
                 if tag is None:
                     return await interaction.followup.send("Please select an available tag.")
                 else:
-                    tag = tag['id']
+                    tag = tag['tag']
 
             queries = []
             values = []
@@ -2645,7 +2642,7 @@ class PollsCog(commands.Cog, name="Polls"):
 
             txt = [f"{k} = ${i}" for k, i in zip(name, list(range(2, len(values) + 2)))]
 
-            await self.bot.db.execute(f"UPDATE polls SET {', '.join(txt)} WHERE tag = $1", tag['id'], *values)
+            await self.bot.db.execute(f"UPDATE polls SET {', '.join(txt)} WHERE tag = $1", tag['tag'], *values)
 
         names = []
         values = []
@@ -2669,7 +2666,7 @@ class PollsCog(commands.Cog, name="Polls"):
 
         await update(names, *values)
 
-        polls = await self.bot.db.fetch("SELECT * FROM polls WHERE tag = $1", tag['id'])
+        polls = await self.bot.db.fetch("SELECT * FROM polls WHERE tag = $1", tag['tag'])
 
         for poll in polls:
             txt.append(f"- `{poll['id']}` {poll['question']}")
@@ -2703,7 +2700,7 @@ class PollsCog(commands.Cog, name="Polls"):
             if tag is None:
                 return await interaction.followup.send("Please select an available tag.")
             else:
-                tag = tag['id']
+                tag = tag['tag']
 
         print("~~~ Running SYNC ~~~")
 
@@ -2976,11 +2973,11 @@ class PollsCog(commands.Cog, name="Polls"):
             items=items,
             modal=self.EditModal,
             groups=groups,
-            title=f"Edit Tag ({tag['id']})"
+            title=f"Edit Tag ({tag['tag']})"
         )
 
         embedtxt = {
-            'title': f"Editing Tag {tag['id']}",
+            'title': f"Editing Tag {tag['tag']}",
             'description': "`Do Ping`, `Do Role Assign`, and `Share Channel End Message` can only be set via the slash command parameters. Click Confirm if you're only editing those parameters."
         }
 
@@ -3033,10 +3030,10 @@ class PollsCog(commands.Cog, name="Polls"):
 
         txt = [f"{k} = ${i}" for k, i in zip(final.keys(), list(range(2, len(final) + 2)))]
 
-        await self.bot.db.execute(f"UPDATE pollstags SET {', '.join(txt)} WHERE id = $1", tag['id'], *final.values())
+        await self.bot.db.execute(f"UPDATE pollstags SET {', '.join(txt)} WHERE id = $1", tag['tag'], *final.values())
 
         oldtag = tag
-        newtag = await self.fetchtag(tag['id'])
+        newtag = await self.fetchtag(tag['tag'])
 
         embed = lambda x: discord.Embed(
             title=x['name'],
@@ -3059,7 +3056,7 @@ class PollsCog(commands.Cog, name="Polls"):
         oldembed.title = f"[OLD] {oldembed.title}"
         newembed.title = f"[NEW] {newembed.title}"
 
-        await interaction.followup.send(f"Edited tag `{tag['id']}`", embeds=[oldembed, newembed])
+        await interaction.followup.send(f"Edited tag `{tag['tag']}`", embeds=[oldembed, newembed])
 
     @pollsadmintagedit.autocomplete("tag")
     async def pollsadmintagedit_autocomplete_tag(self, interaction: discord.Interaction, current: str):
@@ -3092,10 +3089,10 @@ class PollsCog(commands.Cog, name="Polls"):
             roles.append(ping_role.id)
             txt = ["added", "to"]
 
-        await self.bot.db.execute("UPDATE pollstags SET end_message_role_ids = $2 WHERE id = $1", tag['id'], roles)
+        await self.bot.db.execute("UPDATE pollstags SET end_message_role_ids = $2 WHERE id = $1", tag['tag'], roles)
 
         await interaction.followup.send(
-            f"Successfully **{txt[0]}** {ping_role.mention} {txt[1]} the **{tag['name']}** ({tag['id']}) tag.",
+            f"Successfully **{txt[0]}** {ping_role.mention} {txt[1]} the **{tag['name']}** ({tag['tag']}) tag.",
             allowed_mentions=discord.AllowedMentions.none())
 
     @pollsadmintagpingrole.autocomplete("tag")
@@ -3129,9 +3126,9 @@ class PollsCog(commands.Cog, name="Polls"):
         guilds.append(channel.guild.id)
 
         await self.bot.db.execute("UPDATE pollstags SET crosspost_channels = $2, crosspost_servers = $3 WHERE id = $1",
-                                  tag['id'], channels, guilds)
+                                  tag['tag'], channels, guilds)
 
-        await interaction.followup.send(f"Linked {channel.mention} to crossposts from *{tag['name']}* (`{tag['id']}`)")
+        await interaction.followup.send(f"Linked {channel.mention} to crossposts from *{tag['name']}* (`{tag['tag']}`)")
 
     @pollsadmincrosspostlink.autocomplete("tag")
     async def pollsadmincrosspostlink_autocomplete_tag(self, interaction: discord.Interaction, current: str):
@@ -3165,10 +3162,10 @@ class PollsCog(commands.Cog, name="Polls"):
         guilds.pop(index)
 
         await self.bot.db.execute("UPDATE pollstags SET crosspost_channels = $2, crosspost_servers = $3 WHERE id = $1",
-                                  tag['id'], channels, guilds)
+                                  tag['tag'], channels, guilds)
 
         await interaction.followup.send(
-            f"Unlinked {channel.mention} from crossposts from *{tag['name']}* (`{tag['id']}`)")
+            f"Unlinked {channel.mention} from crossposts from *{tag['name']}* (`{tag['tag']}`)")
 
     @pollsadmincrosspostunlink.autocomplete("tag")
     async def pollsadmincrosspostunlink_autocomplete_tag(self, interaction: discord.Interaction, current: str):
