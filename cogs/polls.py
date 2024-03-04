@@ -1132,7 +1132,10 @@ class PollsCog(commands.Cog, name="Polls"):
         while self.bot.updatemsg_flags[poll['id']] == True:
             self.bot.updatemsg_flags[poll['id']] = False
 
-            await self.do_updatepollmessage(poll)
+            try:
+                await self.do_updatepollmessage(poll)
+            except Exception:
+                traceback.print_exc()
 
             wait = 2
             await asyncio.sleep(wait)
