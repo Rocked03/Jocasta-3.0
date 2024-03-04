@@ -1789,22 +1789,24 @@ class PollsCog(commands.Cog, name="Polls"):
             await self.bot.db.execute("DELETE FROM polls WHERE id = $1", poll_id)
             await self.bot.db.execute("DELETE FROM pollsvotes WHERE poll_id = $1", poll_id)
 
-            tags = await self.fetchalltags()
-            findtag = lambda x: next(i for i in tags if i['id'] == x['tag'])
+            # tags = await self.fetchalltags()
+            # findtag = lambda x: next(i for i in tags if i['id'] == x['tag'])
+            #
+            # recreate = ["/polls create", f"question: {poll['question']}"]
+            # recreate += [f"opt_{i}: {c}" for c, i in zip(poll['choices'], range(1, len(poll['choices']) + 1))]
+            # if poll['description']: recreate.append(f"question: {poll['description']}")
+            # if poll['thread_question']: recreate.append(f"thread_question: {poll['thread_question']}")
+            # if poll['image']: recreate.append(f"image: {poll['image']}")
+            # if poll['tag']: recreate.append(f"tag: {findtag(poll['tag']).name}")
+            # if poll['show_question'] is not None: recreate.append(f"show_question: {poll['show_question']}")
+            # if poll['show_options'] is not None: recreate.append(f"show_options: {poll['show_options']}")
+            # if poll['show_voting'] is not None: recreate.append(f"show_voting: {poll['show_voting']}")
+            # recreatemsg = ' '.join(recreate)
 
-            recreate = ["/polls create", f"question: {poll['question']}"]
-            recreate += [f"opt_{i}: {c}" for c, i in zip(poll['choices'], range(1, len(poll['choices']) + 1))]
-            if poll['description']: recreate.append(f"question: {poll['description']}")
-            if poll['thread_question']: recreate.append(f"thread_question: {poll['thread_question']}")
-            if poll['image']: recreate.append(f"image: {poll['image']}")
-            if poll['tag']: recreate.append(f"tag: {findtag(poll['tag']).name}")
-            if poll['show_question'] is not None: recreate.append(f"show_question: {poll['show_question']}")
-            if poll['show_options'] is not None: recreate.append(f"show_options: {poll['show_options']}")
-            if poll['show_voting'] is not None: recreate.append(f"show_voting: {poll['show_voting']}")
-            recreatemsg = ' '.join(recreate)
+            # await msg.edit(content=f"Deleted the poll question.\n\nTo recreate this poll, type:\n`{recreatemsg}",
+            #                view=view)
 
-            await msg.edit(content=f"Deleted the poll question.\n\nTo recreate this poll, type:\n`{recreatemsg}",
-                           view=view)
+            await msg.edit(content=f"Deleted the poll question.", view=view)
         else:
             await msg.edit(content="Cancelled.", view=view)
 
