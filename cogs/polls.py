@@ -260,13 +260,18 @@ class PollsCog(commands.Cog, name="Polls"):
 
     async def fetchallpolls(self, showunpublished=False):
         if showunpublished:
-            return await self.bot.db.fetch("SELECT * FROM polls")
+            return await self.bot.db.fetch(
+                "SELECT * FROM (polls LEFT JOIN pollsinfo ON polls.guild_id = pollsinfo.guild_id) LEFT JOIN pollstags ON polls.tag = pollstags.tag")
         else:
-            return await self.bot.db.fetch("SELECT * FROM polls WHERE published = true")
+            return await self.bot.db.fetch(
+                "SELECT * FROM (polls LEFT JOIN pollsinfo ON polls.guild_id = pollsinfo.guild_id) LEFT JOIN pollstags ON polls.tag = pollstags.tag "
+                "WHERE published = true")
 
     async def fetchpoll(self, poll_id: int):
         return await self.bot.db.fetchrow(
-            "SELECT * FROM (polls LEFT JOIN pollsinfo ON polls.guild_id = pollsinfo.guild_id) LEFT JOIN pollstags ON polls.tag = pollstags.tag WHERE polls.id = $1"
+            "SELECT * FROM "
+            "(polls LEFT JOIN pollsinfo ON polls.guild_id = pollsinfo.guild_id) LEFT JOIN pollstags ON polls.tag = pollstags.tag "
+            "WHERE polls.id = $1"
             , poll_id)
 
     async def fetchpollmsg(self, poll):
@@ -419,20 +424,34 @@ class PollsCog(commands.Cog, name="Polls"):
         # # await ctx.send(file=f, embed=e)
         # await ctx.send(file=f)
 
-        votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
-
-        for user in votes:
-            user_id = user['user_id']
-            for p, v in user.items():
-                if p == 'user_id':
-                    continue
-                if v is not None:
-                    await self.bot.db.execute(
-                        "INSERT INTO pollsvotesnew (id, user_id, poll_id, choice) VALUES ($1, $2, $3, $4)",
-                        user_id + int(p), user_id, int(p), v)
-                    print(user_id, p, v)
+        # votes = await self.bot.db.fetch("SELECT * FROM pollsvotes")
+        #
+        # for user in votes:
+        #     user_id = user['user_id']
+        #     for p, v in user.items():
+        #         if p == 'user_id':
+        #             continue
+        #         if v is not None:
+        #             await self.bot.db.execute(
+        #                 "INSERT INTO pollsvotesnew (id, user_id, poll_id, choice) VALUES ($1, $2, $3, $4)",
+        #                 user_id + int(p), user_id, int(p), v)
+        #             print(user_id, p, v)
 
         # print((await self.bot.db.fetch("SELECT * FROM pollsvotesnew"))[0])
+
+        polls = await self.bot.db.fetch(
+                "SELECT * FROM (polls LEFT JOIN pollsinfo ON polls.guild_id = pollsinfo.guild_id) LEFT JOIN pollstags ON polls.tag = pollstags.tag "
+                "WHERE time < TO_TIMESTAMP(1684627200)"
+                "ORDER BY time ASC")
+
+        channel = self.bot.get_channel(1214133803107491840)
+
+        for poll in polls:
+            msg_content = await self.formatpollmessage(poll)
+            msg = await channel.send(**msg_content)
+
+            await self.bot.db.execute("UPDATE polls SET message_id = $1, fallback = true WHERE id = $2", msg.id, poll['id'])
+
 
         print('done')
 
@@ -474,7 +493,7 @@ class PollsCog(commands.Cog, name="Polls"):
         if poll['message_id']:
             try:
                 # message = await self.bot.get_channel(self.fetchchannelid(guild, tag)).fetch_message(poll['message_id'])
-                message = await self.bot.fetchpollmsg(poll)
+                message = await self.fetchpollmsg(poll)
                 embed.add_field(name="Poll Message", value=f"[{poll['question']}]({message.jump_url})")
             except NotFound:
                 embed.add_field(name="Poll Message", value=f"Can't locate message {poll['message_id']}")
@@ -552,10 +571,9 @@ class PollsCog(commands.Cog, name="Polls"):
         if poll['duration'] and poll['published']:
             end_time = poll['time'] + poll['duration']
             if poll['active']:
-                name = "Poll ends"  # at"
+                name = "Poll ends"
             else:
-                name = "Poll finished"  # at"
-            # value = "<t:{0}:f>, <t:{0}:R>\n".format(int(end_time.timestamp()))
+                name = "Poll finished"
             value = "<t:{0}:R>\n".format(int(end_time.timestamp()))
         elif poll['active']:
             name = "The poll is currently open for voting!"
@@ -863,9 +881,9 @@ class PollsCog(commands.Cog, name="Polls"):
         for poll, t in polls:
             num = None
             if tag:
-                if tag['num']:
-                    num = (await self.fetchtag(poll['tag']))['num']
-                    await self.bot.db.execute("UPDATE pollstags SET num = $2 WHERE id = $1", tag['tag'], num + 1)
+                if tag['current_num']:
+                    num = (await self.fetchtag(poll['tag']))['current_num']
+                    await self.bot.db.execute("UPDATE pollstags SET current_num = $2 WHERE id = $1", tag['tag'], num + 1)
 
             votes = [0 for i in range(len(poll['choices']))]
 
@@ -2854,7 +2872,7 @@ class PollsCog(commands.Cog, name="Polls"):
             'channel_id': channel.id,
             'crosspost_channels': [],
             'crosspost_servers': [],
-            'num': num,
+            'current_num': num,
             'colour': colour,
             'end_message': end_message,
             'end_message_latest_ids': [],
@@ -2964,7 +2982,7 @@ class PollsCog(commands.Cog, name="Polls"):
             'num': self.EditItem(
                 name='Next Poll Number',
                 placeholder='Type your poll number here... empty to ignore',
-                value=tag['num'],
+                value=tag['current_num'],
                 required=False
             ),
         }
@@ -3038,7 +3056,7 @@ class PollsCog(commands.Cog, name="Polls"):
         embed = lambda x: discord.Embed(
             title=x['name'],
             description='\n'.join([
-                f"Counting from **{x['num']}**" if x['num'] else f"Not counting polls.",
+                f"Counting from **{x['current_num']}**" if x['current_num'] else f"Not counting polls.",
                 f"Colour: #{hex(x['colour']).strip('0x').upper()}" if x['colour'] else f"No colour.",
                 f"End-message:\n> {x['end_message']}" if x['end_message'] else f"No end-message.",
                 "",
