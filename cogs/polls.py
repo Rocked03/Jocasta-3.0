@@ -265,7 +265,18 @@ class PollsCog(commands.Cog, name="Polls"):
             return await self.bot.db.fetch("SELECT * FROM polls WHERE published = true")
 
     async def fetchpoll(self, poll_id: int):
-        return await self.bot.db.fetchrow("SELECT * FROM polls WHERE id = $1", poll_id)
+        return await self.bot.db.fetchrow(
+            "SELECT * FROM "
+            "(polls LEFT JOIN pollsinfo ON polls.guild_id = pollsinfo.guild_id) "
+            "LEFT JOIN pollstags ON polls.tag = pollstags.id "
+            "WHERE polls.id = $1"
+            , poll_id)
+
+    async def fetchpollmsg(self, poll):
+        return await (
+            self.bot.get_channel(
+                poll['channel_id'] if not poll['fallback'] else poll['fallback_channel_id']
+            ).fetch_message(poll['message_id']))
 
     async def fetchguildinfo(self, guildid: int):
         return await self.bot.db.fetchrow("SELECT * FROM pollsinfo WHERE guild_id = $1", guildid)
@@ -465,7 +476,8 @@ class PollsCog(commands.Cog, name="Polls"):
 
         if poll['message_id']:
             try:
-                message = await self.bot.get_channel(self.fetchchannelid(guild, tag)).fetch_message(poll['message_id'])
+                # message = await self.bot.get_channel(self.fetchchannelid(guild, tag)).fetch_message(poll['message_id'])
+                message = await self.bot.fetchpollmsg(poll)
                 embed.add_field(name="Poll Message", value=f"[{poll['question']}]({message.jump_url})")
             except NotFound:
                 embed.add_field(name="Poll Message", value=f"Can't locate message {poll['message_id']}")
@@ -1100,7 +1112,7 @@ class PollsCog(commands.Cog, name="Polls"):
     async def formatpollmessage(self, poll):
         content = None
         embed = await self.pollquestionembed(poll)
-        view = await self.pollbuttons(poll['id'], active=poll['active'])
+        view = await self.poll_buttons_id(poll['id'], active=poll['active'])
 
         return {
             "content": content,
@@ -1128,10 +1140,7 @@ class PollsCog(commands.Cog, name="Polls"):
 
     async def do_updatepollmessage(self, poll, force=False):
         tag = await self.fetchtag(poll['tag'])
-        guild = await self.fetchguildinfo(poll['guild_id'])
-        channel_id = self.fetchchannelid(guild, tag)
 
-        channel = self.bot.get_channel(channel_id)
         crossposts = [self.bot.get_channel(i) for i in tag['crosspost_channels']] if tag else []
 
         await self.updatevotes(poll)
@@ -1139,7 +1148,7 @@ class PollsCog(commands.Cog, name="Polls"):
 
         txt = await self.formatpollmessage(poll)
 
-        msg = await channel.fetch_message(poll['message_id'])
+        msg = await self.fetchpollmsg(poll)
 
         if not force and txt['content'] == msg.content and msg.embeds and msg.embeds[0] == txt['embed']:
             print(force, txt['content'] == msg.content, bool(msg.embeds), msg.embeds[0] == txt['embed'])
@@ -1300,9 +1309,11 @@ class PollsCog(commands.Cog, name="Polls"):
                 await interaction.followup.send(embed=await self.client.pollfooterembed(self.poll, interaction.user),
                                                 ephemeral=True)
 
-    async def pollbuttons(self, poll_id, **kwargs):
+    async def poll_buttons_id(self, poll_id, **kwargs):
         poll = await self.fetchpoll(poll_id)
+        return self.poll_buttons(poll, **kwargs)
 
+    async def poll_buttons(self, poll, **kwargs):
         return self.PollView(self, poll, **kwargs)
 
     async def on_startup_buttons(self):
@@ -1311,7 +1322,7 @@ class PollsCog(commands.Cog, name="Polls"):
         polls.sort(key=lambda x: not x['active'])
 
         for poll in polls:
-            view = await self.pollbuttons(poll['id'], active=poll['active'])
+            view = await self.poll_buttons(poll, active=poll['active'])
             self.bot.add_view(view)
 
     async def vote(self, poll, user, choice=None):
@@ -2538,8 +2549,9 @@ class PollsCog(commands.Cog, name="Polls"):
                             guild = await self.client.fetchguildinfo(p['guild_id'])
                             tag = await self.client.fetchtag(p['tag'])
                             if interaction.guild_id == p['guild_id']:
-                                message = await self.client.bot.get_channel(
-                                    self.client.fetchchannelid(guild, tag)).fetch_message(p['message_id'])
+                                # message = await self.client.bot.get_channel(
+                                #     self.client.fetchchannelid(guild, tag)).fetch_message(p['message_id'])
+                                message = await self.client.bot.fetchpollmsg(p)
                             else:
                                 i = tag['crosspost_servers'].index(interaction.guild_id)
                                 message = await self.client.bot.get_channel(tag['crosspost_channels'][i]).fetch_message(
