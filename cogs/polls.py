@@ -880,7 +880,7 @@ class PollsCog(commands.Cog, name="Polls"):
             if tag:
                 if tag['current_num']:
                     num = (await self.fetchtag(poll['tag']))['current_num']
-                    await self.bot.db.execute("UPDATE pollstags SET current_num = $2 WHERE id = $1", tag['tag'], num + 1)
+                    await self.bot.db.execute("UPDATE pollstags SET current_num = $2 WHERE tag = $1", tag['tag'], num + 1)
 
             votes = [0 for i in range(len(poll['choices']))]
 
@@ -989,10 +989,10 @@ class PollsCog(commands.Cog, name="Polls"):
                                 latest.remove(message_id)
                                 break
                     if change:
-                        await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1",
+                        await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE tag = $1",
                                                   t['id'], latest)
 
-            await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE id = $1", tag['tag'],
+            await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE tag = $1", tag['tag'],
                                       [m.id for m in endmsgs])
 
         for poll, t in polls:
@@ -3047,7 +3047,7 @@ class PollsCog(commands.Cog, name="Polls"):
 
         txt = [f"{k} = ${i}" for k, i in zip(final.keys(), list(range(2, len(final) + 2)))]
 
-        await self.bot.db.execute(f"UPDATE pollstags SET {', '.join(txt)} WHERE id = $1", tag['tag'], *final.values())
+        await self.bot.db.execute(f"UPDATE pollstags SET {', '.join(txt)} WHERE tag = $1", tag['tag'], *final.values())
 
         oldtag = tag
         newtag = await self.fetchtag(tag['tag'])
@@ -3106,7 +3106,7 @@ class PollsCog(commands.Cog, name="Polls"):
             roles.append(ping_role.id)
             txt = ["added", "to"]
 
-        await self.bot.db.execute("UPDATE pollstags SET end_message_role_ids = $2 WHERE id = $1", tag['tag'], roles)
+        await self.bot.db.execute("UPDATE pollstags SET end_message_role_ids = $2 WHERE tag = $1", tag['tag'], roles)
 
         await interaction.followup.send(
             f"Successfully **{txt[0]}** {ping_role.mention} {txt[1]} the **{tag['name']}** ({tag['tag']}) tag.",
@@ -3142,7 +3142,7 @@ class PollsCog(commands.Cog, name="Polls"):
         channels.append(channel.id)
         guilds.append(channel.guild.id)
 
-        await self.bot.db.execute("UPDATE pollstags SET crosspost_channels = $2, crosspost_servers = $3 WHERE id = $1",
+        await self.bot.db.execute("UPDATE pollstags SET crosspost_channels = $2, crosspost_servers = $3 WHERE tag = $1",
                                   tag['tag'], channels, guilds)
 
         await interaction.followup.send(f"Linked {channel.mention} to crossposts from *{tag['name']}* (`{tag['tag']}`)")
@@ -3178,7 +3178,7 @@ class PollsCog(commands.Cog, name="Polls"):
         channels.pop(index)
         guilds.pop(index)
 
-        await self.bot.db.execute("UPDATE pollstags SET crosspost_channels = $2, crosspost_servers = $3 WHERE id = $1",
+        await self.bot.db.execute("UPDATE pollstags SET crosspost_channels = $2, crosspost_servers = $3 WHERE tag = $1",
                                   tag['tag'], channels, guilds)
 
         await interaction.followup.send(
