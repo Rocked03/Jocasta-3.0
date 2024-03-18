@@ -971,7 +971,7 @@ class PollsCog(commands.Cog, name="Polls"):
                 channels = [tag['channel_id']] + tag['crosspost_channels']
                 endmsgtags += [i for i in alltags if
                                (i['channel_id'] in channels or any(j in channels for j in i['crosspost_channels'])) and
-                               i['id'] != tag['tag']]
+                               i['tag'] != tag['tag']]
 
             for t in endmsgtags:
                 if t['end_message_latest_ids']:
@@ -990,7 +990,7 @@ class PollsCog(commands.Cog, name="Polls"):
                                 break
                     if change:
                         await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE tag = $1",
-                                                  t['id'], latest)
+                                                  t['tag'], latest)
 
             await self.bot.db.execute("UPDATE pollstags SET end_message_latest_ids = $2 WHERE tag = $1", tag['tag'],
                                       [m.id for m in endmsgs])
