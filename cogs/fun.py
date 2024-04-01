@@ -112,7 +112,7 @@ class FunCog(Cog, name="Fun"):
             self.text = TI(label="Tweet text", required=True)
             self.image = TI(label="Image URL", required=False)
             self.timestamp = TI(
-                label="Timestamp (input a Discord message ID with the intended timestamp) (leave blank for right now)",
+                label="Message ID to set timestamp (blank for rn)",
                 required=False,
             )
 
