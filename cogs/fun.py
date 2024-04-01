@@ -78,7 +78,9 @@ class FunCog(Cog, name="Fun"):
         author_handle = modal.author_handle.value
         text = modal.text.value
         image = modal.image.value
-        snowflake_timestamp = modal.timestamp.value
+        snowflake_timestamp = (
+            int(modal.timestamp.value) if modal.timestamp.value else None
+        )
 
         snowflake = self.create_twitter_snowflake(snowflake_timestamp or interaction.id)
 
