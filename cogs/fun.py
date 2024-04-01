@@ -109,7 +109,7 @@ class FunCog(Cog, name="Fun"):
 
             self.author_name = TI(label="Author name", required=True)
             self.author_handle = TI(label="Author handle", required=True)
-            self.text = TI(label="Tweet text", required=True)
+            self.text = TI(label="Tweet text", required=True, style=TextStyle.long)
             self.image = TI(label="Image URL", required=False)
             self.timestamp = TI(
                 label="Message ID to set timestamp (blank for rn)",
