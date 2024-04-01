@@ -21,12 +21,18 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
 
         self.bot.loop.create_task(self.on_startup_scheduler())
 
-    async def on_app_command_error(self, interaction: Interaction, error: AppCommandError):
+    async def on_app_command_error(
+        self, interaction: Interaction, error: AppCommandError
+    ):
         if isinstance(error, app_commands.errors.CheckFailure):
-            return await interaction.response.send_message(f"You can't use this command!", ephemeral=True)
+            return await interaction.response.send_message(
+                f"You can't use this command!", ephemeral=True
+            )
 
         await interaction.followup.send("Something broke!")
-        _log.error('Ignoring exception in command %r', interaction.command.name, exc_info=error)
+        _log.error(
+            "Ignoring exception in command %r", interaction.command.name, exc_info=error
+        )
 
     async def on_startup_scheduler(self):
         channel = None
@@ -38,18 +44,22 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
         self.bot.add_view(self.PingRoleView(self.newsrole, "Add/Remove Ping Role"))
 
     guild_ids = [281648235557421056, 288896937074360321, 1010550869391065169]
-    newspinggroup = app_commands.Group(name="newsping", description="News Ping commands", guild_ids=guild_ids)
+    newspinggroup = app_commands.Group(
+        name="newsping", description="News Ping commands", guild_ids=guild_ids
+    )
 
     class PingRoleView(discord.ui.View):
         def __init__(self, role, text):
             super().__init__(timeout=None)
 
-            self.add_item(self.SelfAssignButton(
-                role,
-                label=text,
-                custom_id=str(role.id),
-                style=discord.ButtonStyle.grey
-            ))
+            self.add_item(
+                self.SelfAssignButton(
+                    role,
+                    label=text,
+                    custom_id=str(role.id),
+                    style=discord.ButtonStyle.grey,
+                )
+            )
 
         class SelfAssignButton(discord.ui.Button):
             def __init__(self, role, **kwargs):
@@ -61,10 +71,14 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
 
                 if self.role in user.roles:
                     await user.remove_roles(self.role)
-                    await interaction.response.send_message(f"**Removed** the {self.role.mention} role", ephemeral=True)
+                    await interaction.response.send_message(
+                        f"**Removed** the {self.role.mention} role", ephemeral=True
+                    )
                 else:
                     await user.add_roles(self.role)
-                    await interaction.response.send_message(f"**Added** the {self.role.mention} role", ephemeral=True)
+                    await interaction.response.send_message(
+                        f"**Added** the {self.role.mention} role", ephemeral=True
+                    )
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -101,11 +115,13 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
 
     async def send_news_ping(self, message):
         async with self.newslock:
-            if (discord.utils.utcnow() - message.created_at).total_seconds() >= newspingbuffertime:
+            if (
+                discord.utils.utcnow() - message.created_at
+            ).total_seconds() >= newspingbuffertime:
                 return
 
-            if message.author.id == self.bot.user.id:
-                return
+            # if message.author.id == self.bot.user.id:
+            #     return
 
             if message.author.id == 1098223523668951111:
                 return
@@ -115,33 +131,56 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
             titles = set()
             for e in message.embeds:
                 if e.footer.text == "Twitter":
-                    desc = [i for i in e.description.split() if not re.match(urlregex, i.strip())]
-                    titles.add(' '.join(desc).strip())
+                    desc = [
+                        i
+                        for i in e.description.split()
+                        if not re.match(urlregex, i.strip())
+                    ]
+                    titles.add(" ".join(desc).strip())
                 else:
                     titles.add(e.title)
 
-            titles = {i for i in titles if i and not any(j.startswith(i.strip('...')) and j != i for j in titles if j)}
+            titles = {
+                i
+                for i in titles
+                if i
+                and not any(
+                    j.startswith(i.strip("...")) and j != i for j in titles if j
+                )
+            }
 
             # if len(re.findall(urlregex, message.content)) != len(message.embeds):
             #     return
 
             channel = message.channel
 
-            formatmsg = lambda mention, titles: f"{mention} " + '\n'.join(f"*{t}*" for t in titles)
+            formatmsg = lambda mention, titles: f"{mention} " + "\n".join(
+                f"*{t}*" for t in titles
+            )
 
-            channelinfo = await self.bot.db.fetchrow("SELECT * FROM newschannelsping WHERE channel_id = $1", channel.id)
+            channelinfo = await self.bot.db.fetchrow(
+                "SELECT * FROM newschannelsping WHERE channel_id = $1", channel.id
+            )
             if channelinfo:
-                if channelinfo['latest_message_id']:
+                if channelinfo["latest_message_id"]:
                     try:
-                        oldmsg = await channel.fetch_message(channelinfo['latest_message_id'])
+                        oldmsg = await channel.fetch_message(
+                            channelinfo["latest_message_id"]
+                        )
                     except NotFound:
                         pass
                     else:
-                        if (discord.utils.utcnow() - oldmsg.created_at).total_seconds() >= newspingbuffertime:
+                        if (
+                            discord.utils.utcnow() - oldmsg.created_at
+                        ).total_seconds() >= newspingbuffertime:
                             await oldmsg.delete()
                         else:
-                            current = [i.strip('*') for i in
-                                       oldmsg.content.replace(f"{self.newsrole.mention} ", "").split('\n')]
+                            current = [
+                                i.strip("*")
+                                for i in oldmsg.content.replace(
+                                    f"{self.newsrole.mention} ", ""
+                                ).split("\n")
+                            ]
                             for t in titles:
                                 if t not in current:
                                     current.append(t)
@@ -149,14 +188,20 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
                             await oldmsg.edit(content=new)
                             return
             else:
-                await self.bot.db.execute("INSERT INTO newschannelsping (channel_id) VALUES ($1)", channel.id)
+                await self.bot.db.execute(
+                    "INSERT INTO newschannelsping (channel_id) VALUES ($1)", channel.id
+                )
 
             msg = await channel.send(
                 formatmsg(self.newsrole.mention, titles),
-                view=self.PingRoleView(self.newsrole, "Add/Remove Ping Role"))
+                view=self.PingRoleView(self.newsrole, "Add/Remove Ping Role"),
+            )
 
-            await self.bot.db.execute("UPDATE newschannelsping SET latest_message_id = $2 WHERE channel_id = $1",
-                                      channel.id, msg.id)
+            await self.bot.db.execute(
+                "UPDATE newschannelsping SET latest_message_id = $2 WHERE channel_id = $1",
+                channel.id,
+                msg.id,
+            )
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -168,11 +213,23 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
     async def newspingbutton(self, interaction: discord.Interaction, message: str):
         """Generates a message with the news ping role button."""
         role = interaction.guild.get_role(newspingrole)
-        if not role: return interaction.response.send_message("Cannot access role in this server!", ephemeral=True)
+        if not role:
+            return interaction.response.send_message(
+                "Cannot access role in this server!", ephemeral=True
+            )
 
         view = self.PingRoleView(role, "Add/Remove Ping Role")
 
         await interaction.channel.send(message, view=view)
+        await interaction.response.send_message("Sent!", ephemeral=True)
+
+    @newspinggroup.command(name="trigger")
+    async def newspingtrigger(
+        self, interaction: discord.Interaction, channel: TextChannel, message_url: str
+    ):
+        """Triggers a news ping."""
+        msg = await channel.fetch_message(int(message_url.split("/")[-1]))
+        await self.send_news_ping(msg)
         await interaction.response.send_message("Sent!", ephemeral=True)
 
 
