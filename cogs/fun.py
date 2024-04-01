@@ -58,9 +58,16 @@ class FunCog(Cog, name="Fun"):
         return new_snowflake
 
     @app_commands.command(name="fake-tweet")
+    @app_commands.describe(
+        channel="Channel to send the tweet in",
+        troll_link="Link to troll with (optional)",
+    )
     @guilds(281648235557421056)
     async def fake_tweet(
-        self, interaction: discord.Interaction, channel: discord.TextChannel
+        self,
+        interaction: discord.Interaction,
+        channel: discord.TextChannel,
+        troll_link: str = None,
     ):
         """Create a fake tweet"""
         modal = FunCog.FakeTweetModal()
@@ -72,14 +79,13 @@ class FunCog(Cog, name="Fun"):
         text = modal.text.value
         image = modal.image.value
         snowflake_timestamp = modal.timestamp.value
-        link = modal.link.value
 
         snowflake = self.create_twitter_snowflake(snowflake_timestamp or interaction.id)
 
         timestamp = discord.Object(snowflake).created_at
 
         link_url = f"{author_handle}/status/{snowflake}"
-        link = link or "https://twitter.com/" + link_url
+        link = troll_link or "https://twitter.com/" + link_url
 
         embed = Embed(
             title=f"{author_name} (@{author_handle}) on X",
@@ -99,43 +105,22 @@ class FunCog(Cog, name="Fun"):
 
     class FakeTweetModal(Modal):
         def __init__(self):
-            super().__init__(title="Create a fake tweet (1/2)", timeout=300)
+            super().__init__(title="Create a fake tweet", timeout=300)
 
             self.author_name = TI(label="Author name", required=True)
             self.author_handle = TI(label="Author handle", required=True)
             self.text = TI(label="Tweet text", required=True)
             self.image = TI(label="Image URL", required=False)
-
-            self.timestamp = None
-            self.link = None
+            self.timestamp = TI(
+                label="Timestamp (input a Discord message ID with the intended timestamp) (leave blank for right now)",
+                required=False,
+            )
 
             self.add_item(self.author_name)
             self.add_item(self.author_handle)
             self.add_item(self.text)
             self.add_item(self.image)
-
-        async def on_submit(self, interaction: Interaction[ClientT], /) -> None:
-            modal = FunCog.FakeTweetModalPartTwo()
-            await interaction.response.send_modal(modal)
-            await modal.wait()
-            self.timestamp = modal.timestamp
-            self.link = modal.link
-
-    class FakeTweetModalPartTwo(Modal):
-        def __init__(self):
-            super().__init__(title="Create a fake tweet (2/2)", timeout=300)
-
-            self.timestamp = TI(
-                label="Timestamp (input a Discord message ID with the intended timestamp) (leave blank for right now)",
-                required=False,
-            )
-            self.link = TI(
-                label="Troll link",
-                required=False,
-            )
-
             self.add_item(self.timestamp)
-            self.add_item(self.link)
 
         async def on_submit(self, interaction: Interaction[ClientT], /) -> None:
             await interaction.response.send_message("Created tweet >:)", ephemeral=True)
