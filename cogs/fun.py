@@ -82,7 +82,7 @@ class FunCog(Cog, name="Fun"):
 
         snowflake = self.create_twitter_snowflake(snowflake_timestamp or interaction.id)
 
-        timestamp = discord.Object(snowflake).created_at
+        timestamp = discord.Object(snowflake_timestamp or interaction.id).created_at
 
         link_url = f"{author_handle}/status/{snowflake}"
         link = troll_link or "https://twitter.com/" + link_url
