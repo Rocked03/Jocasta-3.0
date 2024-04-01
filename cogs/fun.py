@@ -106,7 +106,14 @@ class FunCog(Cog, name="Fun"):
         if image:
             embed.set_image(url=image)
 
-        await channel.send(f"<https://twitter.com/>[{link_url}](<{link}>)", embed=embed)
+        await channel.send(
+            (
+                f"<https://twitter.com/>[{link_url}](<{link}>)"
+                if troll_link
+                else f"<{link}>"
+            ),
+            embed=embed,
+        )
 
     class FakeTweetModal(Modal):
         def __init__(self):
