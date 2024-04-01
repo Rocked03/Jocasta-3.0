@@ -72,7 +72,10 @@ class FunCog(Cog, name="Fun"):
         """Create a fake tweet"""
         modal = FunCog.FakeTweetModal()
         await interaction.response.send_modal(modal)
-        await modal.wait()
+        timeout = await modal.wait()
+
+        if timeout:
+            return
 
         author_name = modal.author_name.value
         author_handle = modal.author_handle.value
