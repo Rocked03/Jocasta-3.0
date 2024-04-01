@@ -99,14 +99,34 @@ class FunCog(Cog, name="Fun"):
 
     class FakeTweetModal(Modal):
         def __init__(self):
-            super().__init__(title="Create a fake tweet", timeout=300)
+            super().__init__(title="Create a fake tweet (1/2)", timeout=300)
 
             self.author_name = TI(label="Author name", required=True)
             self.author_handle = TI(label="Author handle", required=True)
             self.text = TI(label="Tweet text", required=True)
             self.image = TI(label="Image URL", required=False)
+
+            self.timestamp = None
+            self.link = None
+
+            self.add_item(self.author_name)
+            self.add_item(self.author_handle)
+            self.add_item(self.text)
+            self.add_item(self.image)
+
+        async def on_submit(self, interaction: Interaction[ClientT], /) -> None:
+            modal = FunCog.FakeTweetModalPartTwo()
+            await interaction.response.send_modal(modal)
+            await modal.wait()
+            self.timestamp = modal.timestamp
+            self.link = modal.link
+
+    class FakeTweetModalPartTwo(Modal):
+        def __init__(self):
+            super().__init__(title="Create a fake tweet (2/2)", timeout=300)
+
             self.timestamp = TI(
-                label="Timestamp (input a Discord message ID with the intended timestamp)",
+                label="Timestamp (input a Discord message ID with the intended timestamp) (leave blank for right now)",
                 required=False,
             )
             self.link = TI(
@@ -114,10 +134,6 @@ class FunCog(Cog, name="Fun"):
                 required=False,
             )
 
-            self.add_item(self.author_name)
-            self.add_item(self.author_handle)
-            self.add_item(self.text)
-            self.add_item(self.image)
             self.add_item(self.timestamp)
             self.add_item(self.link)
 
