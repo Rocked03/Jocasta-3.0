@@ -389,9 +389,13 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         except HTTPError:
             return await interaction.followup.send(f"API Request Failed.")
 
-        current_season = next(i for i in reversed(project.seasons) if i["overview"]) if medium == "tv" else None
-
         await self.bot.loop.run_in_executor(None, project.info)
+        current_season = (
+            next(i for i in reversed(project.seasons) if i["overview"])
+            if medium == "tv"
+            else None
+        )
+
         name = project.original_title if medium == "movie" else project.name
         desc = (
             project.overview
@@ -400,9 +404,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         )
         tagline = project.tagline
         poster = "https://www.themoviedb.org/t/p/original" + (
-            project.poster_path
-            if medium == "movie"
-            else current_season["poster_path"]
+            project.poster_path if medium == "movie" else current_season["poster_path"]
         )
 
         # creds = await self.bot.loop.run_in_executor(None, project.credits)
