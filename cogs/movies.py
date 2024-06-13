@@ -35,62 +35,145 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
     async def load_casts(self):
         print("Loading casts...")
 
-        mcu = {'movies': [1726, 1724, 10138, 10195, 1771, 24428, 68721, 76338, 100402, 118340, 102899, 99861, 271110,
-                          283995, 315635, 284053, 284054, 299536, 363088, 299537, 299534, 429617, 497698, 566525,
-                          524434, 634649, 616037, 453395, 505642, 640146, 447365, 609681, 822119, 986056, 617127,
-                          533535, 617126, 1003596, 1003598, 894205, 774752, 1030022, 76122, 76535, 119569, 211387,
-                          253980, 758025, 1010818],
-               'shows': [1403, 61550, 68716, 67466, 66190, 88987, 61889, 38472, 62126, 62127, 62285, 67178, 85271,
-                         88396, 84958, 91363, 88329, 92749, 92782, 92783, 114472, 122226, 114471, 138501, 138505,
-                         202555, 198178, 138502]}
+        mcu = {
+            "movies": [
+                1726,
+                1724,
+                10138,
+                10195,
+                1771,
+                24428,
+                68721,
+                76338,
+                100402,
+                118340,
+                102899,
+                99861,
+                271110,
+                283995,
+                315635,
+                284053,
+                284054,
+                299536,
+                363088,
+                299537,
+                299534,
+                429617,
+                497698,
+                566525,
+                524434,
+                634649,
+                616037,
+                453395,
+                505642,
+                640146,
+                447365,
+                609681,
+                822119,
+                986056,
+                617127,
+                533535,
+                617126,
+                1003596,
+                1003598,
+                894205,
+                774752,
+                1030022,
+                76122,
+                76535,
+                119569,
+                211387,
+                253980,
+                758025,
+                1010818,
+            ],
+            "shows": [
+                1403,
+                61550,
+                68716,
+                67466,
+                66190,
+                88987,
+                61889,
+                38472,
+                62126,
+                62127,
+                62285,
+                67178,
+                85271,
+                88396,
+                84958,
+                91363,
+                88329,
+                92749,
+                92782,
+                92783,
+                114472,
+                122226,
+                114471,
+                138501,
+                138505,
+                202555,
+                198178,
+                138502,
+            ],
+        }
 
         projects = {}
 
-        for m_id in mcu['movies']:
+        for m_id in mcu["movies"]:
             m = await self.bot.loop.run_in_executor(None, tmdb.Movies, m_id)
             i = await self.bot.loop.run_in_executor(None, m.info)
             # print(i['original_title'])
-            self.titles[m.id] = i['original_title']
+            self.titles[m.id] = i["original_title"]
             c = await self.bot.loop.run_in_executor(None, m.credits)
             projects[m.id] = c
 
-        for tv_id in mcu['shows']:
+        for tv_id in mcu["shows"]:
             m = await self.bot.loop.run_in_executor(None, tmdb.TV, tv_id)
             i = await self.bot.loop.run_in_executor(None, m.info)
             # print(i['name'])
-            self.titles[m.id] = i['name']
+            self.titles[m.id] = i["name"]
             c = await self.bot.loop.run_in_executor(None, m.credits)
             projects[m.id] = c
 
         for m, c in projects.items():
-            for p in c['cast']:
-                id_ = p['id']
+            for p in c["cast"]:
+                id_ = p["id"]
                 if id_ not in self.casts:
                     self.casts[id_] = {}
                 if m not in self.casts[id_]:
                     self.casts[id_][m] = []
                 self.casts[id_][m].append(f"~{p['character']}")
 
-            for p in c['crew']:
-                id_ = p['id']
+            for p in c["crew"]:
+                id_ = p["id"]
                 if id_ not in self.casts:
                     self.casts[id_] = {}
                 if m not in self.casts[id_]:
                     self.casts[id_][m] = []
-                self.casts[id_][m].append(p['job'])
+                self.casts[id_][m].append(p["job"])
 
         # print(self.titles)
         print("Successfully loaded casts.")
 
-    mcu_connections = app_commands.Group(name="mcu-connections", description="See crossover cast to the MCU!")
+    mcu_connections = app_commands.Group(
+        name="mcu-connections", description="See crossover cast to the MCU!"
+    )
 
-    spoiler_threads = app_commands.Group(name="spoiler-thread", description="Add spoiler threads!",
-                                         guild_ids=[homeserver], default_permissions=Permissions(manage_messages=True))
+    spoiler_threads = app_commands.Group(
+        name="spoiler-thread",
+        description="Add spoiler threads!",
+        guild_ids=[homeserver],
+        default_permissions=Permissions(manage_messages=True),
+    )
 
     async def loaded(self, interaction: discord.Interaction):
         if not self.casts:
-            await interaction.response.send_message("Database has not yet been loaded. Please wait a few moments.",
-                                                    ephemeral=True)
+            await interaction.response.send_message(
+                "Database has not yet been loaded. Please wait a few moments.",
+                ephemeral=True,
+            )
             return False
         else:
             await interaction.response.defer()
@@ -102,11 +185,11 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         return id_ in self.titles
 
     def most_common(self, lst):
-        lst.sort(key=lambda x: not x.startswith('~'))
+        lst.sort(key=lambda x: not x.startswith("~"))
         return max(set(lst), key=lst.count)
 
     def find_match(self, cast, selector):
-        mcu = self.casts[cast['id']]
+        mcu = self.casts[cast["id"]]
         roles = [vv for k, v in mcu.items() for vv in v]
         role_in_mcu = self.most_common(roles)
         title = self.titles[next(k for k, v in mcu.items() if role_in_mcu in v)]
@@ -116,9 +199,9 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
     def connections(self, name, creds):
         matched = {}
 
-        for c in creds['cast']:
-            if c['id'] not in matched and c['id'] in self.casts:
-                matched[c['id']] = self.find_match(c, 'character')
+        for c in creds["cast"]:
+            if c["id"] not in matched and c["id"] in self.casts:
+                matched[c["id"]] = self.find_match(c, "character")
 
         txt = [f"## MCU Connections: *{name}*"] + list(matched.values())
         if not matched:
@@ -135,7 +218,9 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             current_txt += t + "\n"
         embeds.append(discord.Embed(description=current_txt.strip()))
 
-        embeds[-1].set_footer(text="Data sourced from TMDB. (Casting is sometimes incomplete on TV shows)")
+        embeds[-1].set_footer(
+            text="Data sourced from TMDB. (Casting is sometimes incomplete on TV shows)"
+        )
 
         return embeds
 
@@ -146,20 +231,24 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         if not await self.loaded(interaction):
             return
 
-        response = await self.bot.loop.run_in_executor(None, partial(self.search.movie, query=movie))
-        if not response['results']:
+        response = await self.bot.loop.run_in_executor(
+            None, partial(self.search.movie, query=movie)
+        )
+        if not response["results"]:
             return await interaction.followup.send(f"`{movie}` returned no results.")
 
-        result = response['results'][0]
+        result = response["results"][0]
         try:
-            project = await self.bot.loop.run_in_executor(None, tmdb.Movies, result['id'])
+            project = await self.bot.loop.run_in_executor(
+                None, tmdb.Movies, result["id"]
+            )
         except HTTPError:
             return await interaction.followup.send(f"API Request Failed.")
 
         await self.bot.loop.run_in_executor(None, project.info)
         name = f"{project.original_title} ({project.release_date.split('-')[0]})"
 
-        if await self.within(interaction, name, result['id']):
+        if await self.within(interaction, name, result["id"]):
             return
 
         creds = await self.bot.loop.run_in_executor(None, project.credits)
@@ -176,20 +265,22 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         if not await self.loaded(interaction):
             return
 
-        response = await self.bot.loop.run_in_executor(None, partial(self.search.tv, query=tv_show))
-        if not response['results']:
+        response = await self.bot.loop.run_in_executor(
+            None, partial(self.search.tv, query=tv_show)
+        )
+        if not response["results"]:
             return await interaction.followup.send(f"`{tv_show}` returned no results.")
 
-        result = response['results'][0]
+        result = response["results"][0]
         try:
-            project = await self.bot.loop.run_in_executor(None, tmdb.TV, result['id'])
+            project = await self.bot.loop.run_in_executor(None, tmdb.TV, result["id"])
         except HTTPError:
             return await interaction.followup.send(f"API Request Failed.")
 
         await self.bot.loop.run_in_executor(None, project.info)
         name = f"{project.name} ({project.first_air_date.split('-')[0]})"
 
-        if await self.within(interaction, name, result['id']):
+        if await self.within(interaction, name, result["id"]):
             return
 
         creds = await self.bot.loop.run_in_executor(None, project.credits)
@@ -206,31 +297,40 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
         if not await self.loaded(interaction):
             return
 
-        response = await self.bot.loop.run_in_executor(None, partial(self.search.collection, query=collection))
-        if not response['results']:
-            return await interaction.followup.send(f"`{collection}` returned no results.")
+        response = await self.bot.loop.run_in_executor(
+            None, partial(self.search.collection, query=collection)
+        )
+        if not response["results"]:
+            return await interaction.followup.send(
+                f"`{collection}` returned no results."
+            )
 
-        result = response['results'][0]
+        result = response["results"][0]
 
         try:
-            project = await self.bot.loop.run_in_executor(None, tmdb.Collections, result['id'])
+            project = await self.bot.loop.run_in_executor(
+                None, tmdb.Collections, result["id"]
+            )
         except HTTPError:
             return await interaction.followup.send(f"API Request Failed.")
 
         await self.bot.loop.run_in_executor(None, project.info)
         name = project.name
 
-        creds = {'cast': [], 'crew': []}
+        creds = {"cast": [], "crew": []}
         for p in project.parts:
-            if await self.within(interaction, name, p['id']):
+            if await self.within(interaction, name, p["id"]):
                 return
 
-            c = await self.bot.loop.run_in_executor(None,
-                                                    (await self.bot.loop.run_in_executor(None, tmdb.Movies,
-                                                                                         p['id'])).credits)
-            creds['cast'] += c['cast']
-            creds['crew'] += c['crew']
-        creds['cast'].sort(key=lambda x: x['order'])
+            c = await self.bot.loop.run_in_executor(
+                None,
+                (
+                    await self.bot.loop.run_in_executor(None, tmdb.Movies, p["id"])
+                ).credits,
+            )
+            creds["cast"] += c["cast"]
+            creds["crew"] += c["crew"]
+        creds["cast"].sort(key=lambda x: x["order"])
 
         try:
             await interaction.followup.send(embeds=self.connections(name, creds))
@@ -252,94 +352,118 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
     async def find_title(self, title: str, medium: str, year: str = None):
         if medium == "movie":
             return await self.bot.loop.run_in_executor(
-                None, partial(self.search.movie, query=title, year=year))
+                None, partial(self.search.movie, query=title, year=year)
+            )
         elif medium == "tv":
             return await self.bot.loop.run_in_executor(
-                None, partial(self.search.tv, query=title, first_air_date_year=year))
+                None, partial(self.search.tv, query=title, first_air_date_year=year)
+            )
         else:
             return None
 
-    async def add_spoiler_thread(self, interaction: discord.Interaction, title: str, medium: str):
+    async def add_spoiler_thread(
+        self, interaction: discord.Interaction, title: str, medium: str
+    ):
         response = await self.find_title(title, medium)
         if response is None:
             return
-        if not response['results']:
-            response = await self.find_title(title, medium, year=str(datetime.datetime.now().year))
-        if not response['results']:
+        if not response["results"]:
+            response = await self.find_title(
+                title, medium, year=str(datetime.datetime.now().year)
+            )
+        if not response["results"]:
             return await interaction.followup.send(f"`{title}` returned no results.")
 
-        result = response['results'][0]
+        result = response["results"][0]
         try:
             if medium == "movie":
-                project = await self.bot.loop.run_in_executor(None, tmdb.Movies, result['id'])
+                project = await self.bot.loop.run_in_executor(
+                    None, tmdb.Movies, result["id"]
+                )
             elif medium == "tv":
-                project = await self.bot.loop.run_in_executor(None, tmdb.TV, result['id'])
+                project = await self.bot.loop.run_in_executor(
+                    None, tmdb.TV, result["id"]
+                )
             else:
                 return
         except HTTPError:
             return await interaction.followup.send(f"API Request Failed.")
 
+        current_season = next(i for i in reversed(project.seasons) if i["overview"]) if medium == "tv" else None
+
         await self.bot.loop.run_in_executor(None, project.info)
         name = project.original_title if medium == "movie" else project.name
-        desc = project.overview if medium == "movie" or not project.seasons[-1]['overview'] else project.seasons[-1]['overview']
+        desc = (
+            project.overview
+            if medium == "movie" or not current_season["overview"]
+            else current_season["overview"]
+        )
         tagline = project.tagline
-        poster = "https://www.themoviedb.org/t/p/original" + \
-                 (project.poster_path if medium == "movie" else project.seasons[-1]['poster_path'])
+        poster = "https://www.themoviedb.org/t/p/original" + (
+            project.poster_path
+            if medium == "movie"
+            else current_season["poster_path"]
+        )
 
         # creds = await self.bot.loop.run_in_executor(None, project.credits)
 
         items = {
-            'title': discord.ui.TextInput(
-                label="Title",
-                placeholder="Type the title here...",
-                default=name
+            "title": discord.ui.TextInput(
+                label="Title", placeholder="Type the title here...", default=name
             ),
-            'description': discord.ui.TextInput(
+            "description": discord.ui.TextInput(
                 label="Description",
                 placeholder="Type the description here...",
                 default=desc,
                 style=discord.TextStyle.long,
-                required=False
+                required=False,
             ),
-            'tagline': discord.ui.TextInput(
+            "tagline": discord.ui.TextInput(
                 label="Tagline",
                 placeholder="Type the tagline here...",
                 default=tagline,
-                required=False
+                required=False,
             ),
-            'poster': discord.ui.TextInput(
+            "poster": discord.ui.TextInput(
                 label="Poster",
                 placeholder="Type the poster URL here...",
                 default=poster,
-                required=False
-            )
+                required=False,
+            ),
         }
         modal = self.EditModal(title="Create Spoiler Thread", texts=items)
 
         await interaction.response.send_modal(modal)
         await modal.wait()
 
-        name = modal.values['title']
-        desc = modal.values['description']
-        tagline = modal.values['tagline']
-        poster = modal.values['poster']
+        name = modal.values["title"]
+        desc = modal.values["description"]
+        tagline = modal.values["tagline"]
+        poster = modal.values["poster"]
 
         try:
             async with aiohttp.ClientSession() as s:
                 async with s.get(poster) as r:
-                    poster_file = discord.File(io.BytesIO(await r.read()), filename="poster.png")
+                    poster_file = discord.File(
+                        io.BytesIO(await r.read()), filename="poster.png"
+                    )
         except Exception:
             poster_file = None
 
         forum: discord.ForumChannel = self.bot.get_channel(spoiler_thread_channel)
 
-        tag = next(i for i in forum.available_tags if i.name == ("Film" if medium == "movie" else "TV Show"))
+        tag = next(
+            i
+            for i in forum.available_tags
+            if i.name == ("Film" if medium == "movie" else "TV Show")
+        )
 
         thread = await forum.create_thread(
             name=name,
-            content=(f"## *{tagline}* \n" if tagline else f"## *{name}* \n") + (f"> *{desc}*" if desc else ""),
+            content=(f"## *{tagline}* \n" if tagline else f"## *{name}* \n")
+            + (f"> *{desc}*" if desc else ""),
             file=poster_file,
-            applied_tags=[tag]
+            applied_tags=[tag],
         )
 
         await interaction.followup.send(f"**{thread.thread.mention}** created!")
@@ -360,8 +484,10 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
             await interaction.response.defer()
             self.interaction = interaction
 
-        async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-            await interaction.response.send_message('Something broke!', ephemeral=True)
+        async def on_error(
+            self, interaction: discord.Interaction, error: Exception
+        ) -> None:
+            await interaction.response.send_message("Something broke!", ephemeral=True)
             traceback.print_tb(error.__traceback__)
 
 
