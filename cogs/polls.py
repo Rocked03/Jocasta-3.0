@@ -3570,7 +3570,7 @@ class PollsCog(commands.Cog, name="Polls"):
                 break
 
         insert = {
-            "id": tag_id,
+            "tag": tag_id,
             "name": name,
             "guild_id": interaction.guild_id,
             "channel_id": channel.id,
