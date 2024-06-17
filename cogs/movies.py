@@ -391,7 +391,10 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
 
         await self.bot.loop.run_in_executor(None, project.info)
         current_season = (
-            next(i for i in reversed(project.seasons) if i["overview"])
+            next(
+                (i for i in reversed(project.seasons) if i["overview"]),
+                project.seasons[-1],
+            )
             if medium == "tv"
             else None
         )
