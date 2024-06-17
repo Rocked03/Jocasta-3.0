@@ -887,15 +887,15 @@ class PollsCog(commands.Cog, name="Polls"):
         else:
             tags = await self.fetchalltags()
         tags.sort(key=lambda x: x["name"])
-        choices = [
+        tag_choices = [
             app_commands.Choice(name=t["name"], value=str(t["id"]))
             for t in tags
             if re.search(f"^{current.lower()}", t["name"], re.IGNORECASE)
         ][:25]
         if current == "" and clear is not None:
-            choices = choices[:24]
-            choices.append(emptychoice)
-        return choices
+            tag_choices = tag_choices[:24]
+            tag_choices.append(emptychoice)
+        return tag_choices
 
     async def autocomplete_searchbypollid(
         self,
