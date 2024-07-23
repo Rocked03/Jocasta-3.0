@@ -7,7 +7,7 @@ from discord.app_commands.tree import _log
 from discord.ext import commands
 from config import *
 
-RELAY_FEED_CHANNELS = [600755455052218382]
+RELAY_FEED_CHANNELS = [1108992635957416016]  # [600755455052218382]
 DESTINATION_CHANNELS = [1265124158908534795]
 
 
