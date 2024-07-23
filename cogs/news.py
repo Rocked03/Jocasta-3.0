@@ -1,9 +1,14 @@
 import asyncio, discord, re
+from typing import List, Dict
+
 from discord import *
 from discord.app_commands import *
 from discord.app_commands.tree import _log
 from discord.ext import commands
 from config import *
+
+RELAY_FEED_CHANNELS = [600755455052218382]
+DESTINATION_CHANNELS = [1265124158908534795]
 
 
 class NewsCog(discord.ext.commands.Cog, name="News"):
@@ -20,6 +25,9 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
         self.newslock = asyncio.Lock()
 
         self.bot.loop.create_task(self.on_startup_scheduler())
+
+        self.message_relays: Dict[TextChannel, Dict[int, Message]] = {}
+        self.destinations = []
 
     async def on_app_command_error(
         self, interaction: Interaction, error: AppCommandError
@@ -42,6 +50,7 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
         self.newsguild = channel.guild
         self.newsrole = self.newsguild.get_role(newspingrole)
         self.bot.add_view(self.PingRoleView(self.newsrole, "Add/Remove Ping Role"))
+        self.destinations = [self.bot.get_channel(i) for i in DESTINATION_CHANNELS]
 
     guild_ids = [281648235557421056, 288896937074360321, 1010550869391065169]
     newspinggroup = app_commands.Group(
@@ -99,6 +108,13 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
 
             await self.send_news_ping(message)
 
+        elif message.channel.id in RELAY_FEED_CHANNELS:
+            await self.news_relay(
+                message,
+                self.destinations
+                or [self.bot.get_channel(i) for i in DESTINATION_CHANNELS],
+            )
+
     @commands.Cog.listener()
     async def on_message_edit(self, before, message):
         if message.channel.id in newschannels:
@@ -112,6 +128,13 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
                 return
 
             await self.send_news_ping(message)
+
+        elif message.channel.id in RELAY_FEED_CHANNELS:
+            await self.news_relay(
+                message,
+                self.destinations
+                or [self.bot.get_channel(i) for i in DESTINATION_CHANNELS],
+            )
 
     async def send_news_ping(self, message):
         async with self.newslock:
@@ -231,6 +254,27 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
         msg = await channel.fetch_message(int(message_url.split("/")[-1]))
         await self.send_news_ping(msg)
         await interaction.response.send_message("Sent!", ephemeral=True)
+
+    async def news_relay(self, message: Message, destinations: List[TextChannel]):
+        for destination in destinations:
+            if destination not in self.message_relays:
+                self.message_relays[destination] = {}
+
+            try:
+                if message.id in self.message_relays[destination]:
+                    relay = self.message_relays[destination][message.id]
+                    new_msg = await relay.edit(
+                        content=message.content,
+                        attachments=[await i.to_file() for i in message.attachments],
+                    )
+                else:
+                    new_msg = await destination.send(
+                        content=message.content,
+                        files=[await i.to_file() for i in message.attachments],
+                    )
+                self.message_relays[destination][message.id] = new_msg
+            except Forbidden:
+                pass
 
 
 async def setup(bot):
