@@ -8,7 +8,12 @@ from discord.ext import commands
 from config import *
 
 RELAY_FEED_CHANNELS = [600755455052218382]
-DESTINATION_CHANNELS = [1265124158908534795, 271605596623601675, 271626795038539781, 1108987754349608993]
+DESTINATION_CHANNELS = [
+    1265124158908534795,
+    271605596623601675,
+    271626795038539781,
+    1108987754349608993,
+]
 
 
 class NewsCog(discord.ext.commands.Cog, name="News"):
@@ -23,6 +28,7 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
         self.newsrole = None
 
         self.newslock = asyncio.Lock()
+        self.relaylock = asyncio.Lock()
 
         self.bot.loop.create_task(self.on_startup_scheduler())
 
@@ -256,25 +262,28 @@ class NewsCog(discord.ext.commands.Cog, name="News"):
         await interaction.response.send_message("Sent!", ephemeral=True)
 
     async def news_relay(self, message: Message, destinations: List[TextChannel]):
-        for destination in destinations:
-            if destination not in self.message_relays:
-                self.message_relays[destination] = {}
+        async with self.relaylock:
+            for destination in destinations:
+                if destination not in self.message_relays:
+                    self.message_relays[destination] = {}
 
-            try:
-                if message.id in self.message_relays[destination]:
-                    relay = self.message_relays[destination][message.id]
-                    new_msg = await relay.edit(
-                        content=message.content,
-                        attachments=[await i.to_file() for i in message.attachments],
-                    )
-                else:
-                    new_msg = await destination.send(
-                        content=message.content,
-                        files=[await i.to_file() for i in message.attachments],
-                    )
-                self.message_relays[destination][message.id] = new_msg
-            except Forbidden:
-                pass
+                try:
+                    if message.id in self.message_relays[destination]:
+                        relay = self.message_relays[destination][message.id]
+                        new_msg = await relay.edit(
+                            content=message.content,
+                            attachments=[
+                                await i.to_file() for i in message.attachments
+                            ],
+                        )
+                    else:
+                        new_msg = await destination.send(
+                            content=message.content,
+                            files=[await i.to_file() for i in message.attachments],
+                        )
+                    self.message_relays[destination][message.id] = new_msg
+                except Forbidden:
+                    pass
 
 
 async def setup(bot):
