@@ -3050,17 +3050,27 @@ class PollsCog(commands.Cog, name="Polls"):
                 colour = None
 
                 async def format_page(self, entries):
+                    def entry_format(poll):
+                        string_builder = []
+                        string_builder.append("- ")
+                        string_builder.append(f"`{poll['id']}`")
+                        if poll["num"]:
+                            string_builder.append(f" (`#{poll['num']}`)")
+                        string_builder.append(f": {poll['question']}")
+                        if poll["time"]:
+                            string_builder.append(
+                                f" (<t:{int(poll['time'].timestamp())}:d>)"
+                            )
+                        return "".join(string_builder)
+
+                    results = [entry_format(i) for i in entries]
+                    results_text = "## Results\n" + "\n".join(results)
                     embed = discord.Embed(
                         title="Polls Search",
-                        description="\n".join(self.text),
+                        description="\n".join(self.text + [results_text]),
                         colour=self.colour,
                         timestamp=discord.utils.utcnow(),
                     )
-                    results = [
-                        f"""`{i['id']}`{f' (`#{i["num"]}`)' if i['num'] else ''}: {i['question']}{' (<t:' + str(int(i['time'].timestamp())) + ':d>)' if i['time'] else ''}"""
-                        for i in entries
-                    ]
-                    embed.add_field(name="Results", value="\n".join(results))
 
                     embed.set_footer(
                         text=f"Page {self.current_page}/{self.total_pages} ({len(self.entries)} results)"
@@ -3073,7 +3083,7 @@ class PollsCog(commands.Cog, name="Polls"):
                 await self.fetchguildid(interaction), None
             )
 
-            paginator = await PollSearchPaginator.start(msg, entries=polls, per_page=10)
+            paginator = await PollSearchPaginator.start(msg, entries=polls, per_page=20)
             await paginator.wait()
 
             for child in paginator.children:
