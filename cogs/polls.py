@@ -3700,7 +3700,7 @@ class PollsCog(commands.Cog, name="Polls"):
                 max_length=6,
                 required=False,
             ),
-            "num": self.EditItem(
+            "current_num": self.EditItem(
                 name="Next Poll Number",
                 placeholder="Type your poll number here... empty to ignore",
                 value=tag["current_num"],
@@ -3729,8 +3729,8 @@ class PollsCog(commands.Cog, name="Polls"):
         view.update_message = update_message
 
         view.add_check(
-            lambda x: x["num"].value is None
-            or (x["num"].value.isdigit() and int(x["num"].value) >= 0),
+            lambda x: x["current_num"].value is None
+            or (x["current_num"].value.isdigit() and int(x["current_num"].value) >= 0),
             "Next Poll Number must be a positive integer",
         )
 
@@ -3769,8 +3769,8 @@ class PollsCog(commands.Cog, name="Polls"):
         view.items["colour"].value = (
             int(view.items["colour"].value, 16) if view.items["colour"].value else None
         )
-        view.items["num"].value = (
-            int(view.items["num"].value) if view.items["num"].value else None
+        view.items["current_num"].value = (
+            int(view.items["current_num"].value) if view.items["current_num"].value else None
         )
         final = {k: v.value for k, v in view.items.items()}
 
