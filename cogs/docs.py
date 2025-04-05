@@ -144,13 +144,13 @@ def format_message(message: str) -> str:
     message = re.sub(r"\@\[(.*?)\]\((\d+)\)", r"<@\2>", message)
 
     # Convert @role mentions
-    message = re.sub(r"\@\[(.*?)\]\((\d+)\)", r"<@\&\2>", message)
+    message = re.sub(r"\@\&\[(.*?)\]\((\d+)\)", r"<@\&\2>", message)
 
     # Convert #channel mentions
     message = re.sub(r"\#\[(.*?)\]\((\d+)\)", r"<#\2>", message)
 
     # Convert !url mentions
-    message = re.sub(r"\!([https?://\S+])", r"!\1", message)
+    message = re.sub(r"\!([https?://\S+])", r"\1", message)
 
     # Convert images
     message = convert_md_images(message)
