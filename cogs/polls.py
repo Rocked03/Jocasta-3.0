@@ -3770,7 +3770,9 @@ class PollsCog(commands.Cog, name="Polls"):
             int(view.items["colour"].value, 16) if view.items["colour"].value else None
         )
         view.items["current_num"].value = (
-            int(view.items["current_num"].value) if view.items["current_num"].value else None
+            int(view.items["current_num"].value)
+            if view.items["current_num"].value
+            else None
         )
         final = {k: v.value for k, v in view.items.items()}
 

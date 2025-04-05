@@ -75,6 +75,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
                 533535,
                 617126,
                 1003596,
+                969681,
                 1003598,
                 894205,
                 774752,
@@ -116,6 +117,7 @@ class MoviesCog(discord.ext.commands.Cog, name="Movies"):
                 202555,
                 198178,
                 138502,
+                241388,
             ],
         }
 
