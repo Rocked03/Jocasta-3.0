@@ -196,7 +196,9 @@ class DocsCog(discord.ext.commands.Cog, name="Docs"):
 
         for message in doc_messages:
             if message:
-                await current_channel.send(message)
+                await current_channel.send(
+                    message, allowed_mentions=AllowedMentions.none()
+                )
 
         return len(doc_messages)
 
