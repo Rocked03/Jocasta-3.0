@@ -123,13 +123,17 @@ def convert_md_images(md_string):
     def image_replacer(match):
         alt_text, image_path = match.groups()
 
-        # Remove leading `../../../` to construct the raw URL correctly
-        clean_path = image_path.lstrip("../")
+        if image_path.startswith("http"):
+            return match.group(0)
 
-        # Construct the final GitHub raw URL
-        github_url = f"{RepoDetails.GITHUB_RAW_BASE}/{clean_path}"
+        else:
+            # Remove leading `../../../` to construct the raw URL correctly
+            clean_path = image_path.lstrip("../")
 
-        return github_url
+            # Construct the final GitHub raw URL
+            github_url = f"{RepoDetails.GITHUB_RAW_BASE}/{clean_path}"
+
+            return github_url
 
     # Regex to match image Markdown syntax
     return re.sub(r"!\[(.*?)\]\((.*?)\)", image_replacer, md_string)
