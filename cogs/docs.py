@@ -167,6 +167,9 @@ def process_file_content(content: str) -> list[str]:
 
     formatted_messages = [format_message(message) for message in messages]
 
+    if any(len(message) > 2000 for message in formatted_messages):
+        raise ValueError
+
     return formatted_messages
 
 
@@ -206,7 +209,14 @@ class DocsCog(discord.ext.commands.Cog, name="Docs"):
 
             files = await search_for_channel_in_docs(current_channel)
 
-            message_count = await self.send_messages(files, current_channel)
+            try:
+                message_count = await self.send_messages(files, current_channel)
+
+            except ValueError:
+                return await interaction.followup.send(
+                    "One of the messages is too long (max 2000 characters). Please check the file.",
+                    ephemeral=True,
+                )
 
             await interaction.followup.send(
                 f"Synced {message_count} messages to {current_channel.mention}",
@@ -230,13 +240,21 @@ class DocsCog(discord.ext.commands.Cog, name="Docs"):
             for channel_id, files in files_by_channel.items():
                 channel = self.bot.get_channel(channel_id)
                 if channel:
-                    tally[channel] = await self.send_messages(files, channel)
+                    try:
+                        tally[channel] = await self.send_messages(files, channel)
+
+                    except ValueError:
+                        tally[channel] = -1
 
             await interaction.followup.send(
                 "Synced channels:\n"
                 + "\n".join(
                     [
-                        f"- {count} messages in {channel.mention}"
+                        (
+                            f"- {count} messages in {channel.mention}"
+                            if count > 0
+                            else f"- {channel.mention} has a message too long (max 2000 characters)"
+                        )
                         for channel, count in tally.items()
                     ]
                 ),
